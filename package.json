@@ -1,0 +1,25 @@
+{
+  "name": "sera",
+  "version": "1.0.0",
+  "description": "**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "cov": "forge coverage --report lcov --ir-minimum && genhtml lcov.info --output-directory coverage --ignore-errors inconsistent  "
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://lab.workingants.dev/sera-cx/orderbook-contract.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.1"
+  }
+}

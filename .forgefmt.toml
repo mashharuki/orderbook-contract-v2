@@ -1,0 +1,27 @@
+tab_width = 4
+max_width = 500
+
+bracket_spacing = true
+constructor_bracket = "same_line"
+
+wrap_comments = true
+single_line_statement_blocks = "preserve"
+multiline_func_header = "params_first"
+
+align_args = true
+align_returns = true
+newline_before_return = true
+newline_after_func_sig = false
+
+sort_imports = true
+group_imports = true
+pragma_sort = true
+func_attrs_with_params_multiline = true
+multiline_arity_threshold = 3
+contract_newlines = true
+
+format_doc_comments = true
+normalize_doc_comments = true
+
+quote_style = "double"
+use_tab = false

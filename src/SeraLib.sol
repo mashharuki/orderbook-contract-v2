@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+pragma solidity 0.8.24;
+
+import "@openzeppelin/contracts/utils/math/Math.sol";
+
+error InvalidCostAmount();
+/**
+ * @notice Data structure for a single order
+ */
+
+struct Order {
+    address user;
+    uint48 expiration;
+    uint48 feeBps;
+    address recipient; // if recipient is address(0), it means the order is for internal ledger swap and the payout is credited to the user in their vault. Otherwise, the payout is sent to the recipient which can be the user or other external wallet.
+    address fromToken;
+    address toToken;
+    uint256 fromAmount;
+    uint256 toAmount;
+    bytes32 routeHash;
+    uint256 uuid;
+}
+/**
+ * @notice Data required to match two orders
+ */
+
+struct MatchData {
+    Order order0;
+    bytes signature0;
+    uint256 matchAmount0; // Amount of order0.fromToken to fill
+    Order order1;
+    bytes signature1;
+    uint256 matchAmount1; // Amount of order1.fromToken to fill
+}
+/**
+ * @notice Instant withdraw intent signed by user for executor-authorized withdrawal
+ */
+
+struct WithdrawIntent {
+    address user;
+    address[] tokens;
+    uint256[] amounts;
+    address recipient;
+    uint256 deadline;
+    uint256 uuid;
+}
+
+bytes32 constant ORDER_TYPEHASH = keccak256("Order(address user,uint48 expiration,uint48 feeBps,address recipient,address fromToken,address toToken,uint256 fromAmount,uint256 toAmount,bytes32 routeHash,uint256 uuid)");
+bytes32 constant ROUTE_TYPEHASH = keccak256("Route(bytes32 routeHash)");
+bytes32 constant WITHDRAW_INTENT_TYPEHASH = keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)");
+// Basis points denominator (100% = 10000)
+uint256 constant BPS_DENOMINATOR = 10000;
+/**
+ * @title SeraLib
+ * @notice A library for pure functions and constants used across the Sera protocol.
+ */
+
+library SeraLib {
+    function getOrderHashCalldata(Order calldata order) public pure returns (bytes32) {
+        return keccak256(abi.encode(ORDER_TYPEHASH, order.user, order.expiration, order.feeBps, order.recipient, order.fromToken, order.toToken, order.fromAmount, order.toAmount, order.routeHash, order.uuid));
+    }
+    /**
+     * @notice Compute execution values and enforce pricing constraints
+     */
+
+    function _executionValues(MatchData calldata _match) public pure returns (uint256 executionValue0, uint256 executionValue1) {
+        // amount upper bounds are already validated in `_validateOrderCommon` before this is invoked
+        // executionValue0 = Amount of "toToken" (order1.fromToken) that order0 expects for the given matchAmount0
+        executionValue0 = Math.mulDiv(_match.matchAmount0, _match.order0.toAmount, _match.order0.fromAmount, Math.Rounding.Ceil);
+        // executionValue1 = Amount of "toToken" (order0.fromToken) that order1 expects for the given matchAmount1
+        executionValue1 = Math.mulDiv(_match.matchAmount1, _match.order1.toAmount, _match.order1.fromAmount, Math.Rounding.Ceil);
+        if (_match.matchAmount1 < executionValue0 || _match.matchAmount0 < executionValue1) revert InvalidCostAmount();
+    }
+}
