@@ -1,0 +1,37 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+optimizer = true
+optimizer_runs = 200
+auto_detect_solc = true
+via_ir = true
+
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "solady/=lib/solady/"
+]
+
+
+[fmt]
+line_length = 5000
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+multiline_func_header = "all"
+quote_style = "double"
+number_underscore = "preserve"
+single_line_statement_blocks = "single"
+override_spacing = false
+wrap_comments = false
+ignore = []
+
+[rpc_endpoints]
+arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
+sepolia = "${SEPOLIA_RPC_URL}"
+
+
+[etherscan]
+arbitrum_sepolia = { key = "${ETHERSCAN_KEY}", chain = 421614, api_url = "https://api.etherscan.io/v2/api?chainid=421614&module=contract&action=verify&apikey=${ETHERSCAN_KEY}", browser_url = "https://sepolia.arbiscan.io/" }
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
