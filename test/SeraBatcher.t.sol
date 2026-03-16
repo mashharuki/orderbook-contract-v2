@@ -98,7 +98,7 @@ contract SeraBatcherTest is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = _makePair(500 ether, 50 ether, 11, 12);
         matches[1] = _makePair(500 ether, 50 ether, 21, 22);
-
+        
         // Break the second match (expiration)
         matches[1].order0.expiration = uint48(block.timestamp - 1);
 
@@ -143,6 +143,7 @@ contract SeraBatcherTest is TestHelper {
         assertEq(failedMask, 0);
     }
 
+
     // ======== Mixed Batch Tests ========
 
     function test_batchMatchMixed_Success() public {
@@ -166,7 +167,7 @@ contract SeraBatcherTest is TestHelper {
 
     function test_batchMatchMixed_PartialFailure() public {
         SeraBatcher.AtomicBatch[] memory atomics = new SeraBatcher.AtomicBatch[](2);
-
+        
         // Atomic 1: Success
         MatchData[] memory m1 = new MatchData[](1);
         m1[0] = _makePair(100 ether, 10 ether, 201, 202);
@@ -181,7 +182,7 @@ contract SeraBatcherTest is TestHelper {
         MatchData[] memory singles = new MatchData[](2);
         singles[0] = _makePair(100 ether, 10 ether, 205, 206);
         singles[1] = _makePair(100 ether, 10 ether, 207, 208);
-
+        
         // Single 2: Failure (invalid amount)
         singles[1].matchAmount0 = 101 ether;
 
@@ -189,14 +190,19 @@ contract SeraBatcherTest is TestHelper {
         // Expect AtomicBatchFailed with index 1
         vm.expectEmit(false, false, false, true);
         emit SeraBatcher.AtomicBatchFailed(1, abi.encodeWithSelector(Sera.OrderExpired.selector));
-
+        
         // Expect MatchFailed with index 3 (2 atomics + 1 single)
         vm.expectEmit(true, true, false, true);
-
-        bytes32 h0 = keccak256(abi.encode(ORDER_TYPEHASH, singles[1].order0.user, singles[1].order0.expiration, singles[1].order0.feeBps, singles[1].order0.recipient, singles[1].order0.fromToken, singles[1].order0.toToken, singles[1].order0.fromAmount, singles[1].order0.toAmount, singles[1].order0.routeHash, singles[1].order0.uuid));
-        bytes32 h1 = keccak256(abi.encode(ORDER_TYPEHASH, singles[1].order1.user, singles[1].order1.expiration, singles[1].order1.feeBps, singles[1].order1.recipient, singles[1].order1.fromToken, singles[1].order1.toToken, singles[1].order1.fromAmount, singles[1].order1.toAmount, singles[1].order1.routeHash, singles[1].order1.uuid));
-
-        emit SeraBatcher.MatchFailed(h0, h1, abi.encodeWithSelector(Sera.OrderFilledAmountExceeded.selector), 3);
+        
+        bytes32 h0 = keccak256(abi.encode(ORDER_TYPEHASH, singles[1].order0.user, singles[1].order0.expiration, singles[1].order0.feeBps, singles[1].order0.recipient, singles[1].order0.fromToken, singles[1].order0.toToken, singles[1].order0.fromAmount, singles[1].order0.toAmount, singles[1].order0.initialDepositAmount, singles[1].order0.routeHash, singles[1].order0.uuid));
+        bytes32 h1 = keccak256(abi.encode(ORDER_TYPEHASH, singles[1].order1.user, singles[1].order1.expiration, singles[1].order1.feeBps, singles[1].order1.recipient, singles[1].order1.fromToken, singles[1].order1.toToken, singles[1].order1.fromAmount, singles[1].order1.toAmount, singles[1].order1.initialDepositAmount, singles[1].order1.routeHash, singles[1].order1.uuid));
+        
+        emit SeraBatcher.MatchFailed(
+            h0, 
+            h1, 
+            abi.encodeWithSelector(Sera.OrderFilledAmountExceeded.selector), 
+            3
+        );
         uint256 failedMask = batcher.batchMatchMixed(atomics, singles);
 
         // Atomic 1 (index 0) passed
@@ -220,46 +226,46 @@ contract SeraBatcherTest is TestHelper {
     function test_batchMatchOrders_CatchInvalidSignature() public {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = _makePair(100 ether, 10 ether, 301, 302);
-
+        
         // Corrupt maker signature
         matches[0].signature1 = bytes("invalid");
 
         vm.prank(executor);
         uint256 failedMask = batcher.batchMatchOrders(matches);
-
+        
         assertEq(failedMask, 1, "Match failure should be caught");
     }
 
     function test_batchMatchOrders_CatchTokenMismatch() public {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = _makePair(100 ether, 10 ether, 401, 402);
-
+        
         // Maker is selling something else
         matches[0].order1.fromToken = address(0xdead);
 
         vm.prank(executor);
         uint256 failedMask = batcher.batchMatchOrders(matches);
-
+        
         assertEq(failedMask, 1, "Token mismatch should be caught");
     }
 
     function test_batchMatchOrders_CatchAmountMismatch() public {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = _makePair(100 ether, 10 ether, 501, 502);
-
+        
         // Match amount exceeds signed amount
         matches[0].matchAmount0 = 101 ether;
 
         vm.prank(executor);
         uint256 failedMask = batcher.batchMatchOrders(matches);
-
+        
         assertEq(failedMask, 1, "Amount mismatch should be caught");
     }
 
     function test_batchMatchOrdersAtomic_RevertsInvalidSignature() public {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = _makePair(100 ether, 10 ether, 601, 602);
-
+        
         // Corrupt taker signature
         matches[0].signature0 = bytes("invalid");
 
@@ -268,10 +274,45 @@ contract SeraBatcherTest is TestHelper {
         batcher.batchMatchOrdersAtomic(matches);
     }
 
-    function _makePair(uint256 usdtAmt, uint256 sgdAmt, uint256 uuid0, uint256 uuid1) internal view returns (MatchData memory) {
-        Order memory o0 = Order({user: maker1, fromToken: address(usdt), toToken: address(sgd), fromAmount: usdtAmt, toAmount: sgdAmt, feeBps: 0, recipient: maker1, expiration: uint48(block.timestamp + 1 days), uuid: uuid0, routeHash: bytes32(0)});
-        Order memory o1 = Order({user: maker2, fromToken: address(sgd), toToken: address(usdt), fromAmount: sgdAmt, toAmount: usdtAmt, feeBps: 0, recipient: maker2, expiration: uint48(block.timestamp + 1 days), uuid: uuid1, routeHash: bytes32(0)});
+    function _makePair(uint256 usdtAmt, uint256 sgdAmt, uint256 uuid0, uint256 uuid1)
+        internal
+        view
+        returns (MatchData memory)
+    {
+        Order memory o0 = Order({
+            user: maker1,
+            fromToken: address(usdt),
+            toToken: address(sgd),
+            fromAmount: usdtAmt,
+            toAmount: sgdAmt,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: maker1,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: uuid0,
+            routeHash: bytes32(0)
+        });
+        Order memory o1 = Order({
+            user: maker2,
+            fromToken: address(sgd),
+            toToken: address(usdt),
+            fromAmount: sgdAmt,
+            toAmount: usdtAmt,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: maker2,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: uuid1,
+            routeHash: bytes32(0)
+        });
 
-        return MatchData({order0: o0, signature0: _signOrder(maker1PK, o0, sera), matchAmount0: usdtAmt, order1: o1, signature1: _signOrder(maker2PK, o1, sera), matchAmount1: sgdAmt});
+        return MatchData({
+            order0: o0,
+            signature0: _signOrder(maker1PK, o0, sera),
+            matchAmount0: usdtAmt,
+            order1: o1,
+            signature1: _signOrder(maker2PK, o1, sera),
+            matchAmount1: sgdAmt
+        });
     }
 }

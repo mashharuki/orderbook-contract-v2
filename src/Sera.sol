@@ -72,6 +72,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /// @dev Cannot use hash to protect against uuid replay attacks
     mapping(address => mapping(uint256 => bool)) public isUuidExecuted;
     bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
+    bytes32 public constant EXECUTOR_ROLE_CACHED = keccak256("EXECUTOR_ROLE_CACHED");
     /// @notice Withdrawal request tracking - stores block and amount per token per user
     mapping(address => mapping(address => WithdrawRequest)) public withdrawRequests;
     /// @notice Single trusted router contract allowed to call settleRoutedLeg
@@ -166,7 +167,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         }
         uint256 blocksPassed = block.number - request.requestBlock;
         if (blocksPassed < WITHDRAW_DELAY_BLOCKS) revert WithdrawNotReady();
-        if (amount != request.amount) revert AmountMismatch();
+        if (amount > request.amount) revert AmountMismatch();
         delete withdrawRequests[msg.sender][token];
         vault.withdraw(msg.sender, token, amount, msg.sender);
         emit Withdraw(token, msg.sender, amount);
@@ -420,5 +421,16 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         emit OrderMatched(takerHash, _match.order0.user, takerFromToken, _match.matchAmount0, calc.protocolTake0, makerHash, _match.order1.user, makerFromToken, _match.matchAmount1, calc.protocolTake1);
         if (calc.order0FullyFilled) emit OrderFullyFilled(takerHash, _match.order0.user);
         if (calc.order1FullyFilled) emit OrderFullyFilled(makerHash, _match.order1.user);
+    }
+
+    /**
+     * @notice Captures positive slippage from SOR execution and credits it to the protocol treasury.
+     * @dev Only callable by SeraSOR (EXECUTOR_ROLE_CACHED) during route execution.
+     * @param token The token address to sweep
+     * @param amount The physical amount of leftover tokens in this contract
+     */
+    function sweepTransientToProtocol(address token, uint256 amount) external onlyRole(EXECUTOR_ROLE_CACHED) nonReentrant {
+        IERC20(token).safeTransfer(address(vault), amount);
+        vault.creditLedger(treasury, token, amount);
     }
 }

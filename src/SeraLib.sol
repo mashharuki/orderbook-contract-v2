@@ -17,6 +17,7 @@ struct Order {
     address toToken;
     uint256 fromAmount;
     uint256 toAmount;
+    uint256 initialDepositAmount;
     bytes32 routeHash;
     uint256 uuid;
 }
@@ -45,7 +46,7 @@ struct WithdrawIntent {
     uint256 uuid;
 }
 
-bytes32 constant ORDER_TYPEHASH = keccak256("Order(address user,uint48 expiration,uint48 feeBps,address recipient,address fromToken,address toToken,uint256 fromAmount,uint256 toAmount,bytes32 routeHash,uint256 uuid)");
+bytes32 constant ORDER_TYPEHASH = keccak256("Order(address user,uint48 expiration,uint48 feeBps,address recipient,address fromToken,address toToken,uint256 fromAmount,uint256 toAmount,uint256 initialDepositAmount,bytes32 routeHash,uint256 uuid)");
 bytes32 constant ROUTE_TYPEHASH = keccak256("Route(bytes32 routeHash)");
 bytes32 constant WITHDRAW_INTENT_TYPEHASH = keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)");
 // Basis points denominator (100% = 10000)
@@ -57,7 +58,7 @@ uint256 constant BPS_DENOMINATOR = 10000;
 
 library SeraLib {
     function getOrderHashCalldata(Order calldata order) public pure returns (bytes32) {
-        return keccak256(abi.encode(ORDER_TYPEHASH, order.user, order.expiration, order.feeBps, order.recipient, order.fromToken, order.toToken, order.fromAmount, order.toAmount, order.routeHash, order.uuid));
+        return keccak256(abi.encode(ORDER_TYPEHASH, order.user, order.expiration, order.feeBps, order.recipient, order.fromToken, order.toToken, order.fromAmount, order.toAmount, order.initialDepositAmount, order.routeHash, order.uuid));
     }
     /**
      * @notice Compute execution values and enforce pricing constraints

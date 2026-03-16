@@ -38,26 +38,20 @@ contract Vault is IVault, ReentrancyGuardTransient, AccessControl {
         emit Deposited(token, user, amount);
     }
     /**
-     * @notice Safely credit tokens to user ledger by verifying actual token receipt.
-     * @dev Measures the difference between actual token balance and tracked balance,
-     *      then credits the verified surplus to the user. This prevents inflation attacks
-     *      where a caller could credit more than actually transferred.
+     * @notice Credits `expectedAmount` of `token` to `user`.
+     * @dev CALLER INVARIANT: Caller MUST have already executed safeTransfer(vault, expectedAmount)
+     *      in the same transaction before calling this function. No on-chain verification is
+     *      performed. Violating this invariant will cause vault insolvency.
      * @param user The user to credit
      * @param token The token address
-     * @param expectedAmount The expected minimum surplusamount
+     * @param expectedAmount The amount to credit
      */
 
     function creditLedger(address user, address token, uint256 expectedAmount) external override nonReentrant onlyRole(TRADER_ROLE) {
         if (blacklisted[user]) revert BlacklistedUser(user);
         if (expectedAmount == 0) revert ZeroAmount();
-        // Calculate actual surplus: tokens physically in vault minus what we've tracked
-        uint256 actualBalance = IERC20(token).balanceOf(address(this));
-        uint256 cachedTracked = trackedBalance[token];
-        uint256 surplus = actualBalance - cachedTracked;
-        // Revert if surplus is less than expected (prevents under-crediting attacks)
-        if (surplus < expectedAmount) revert InsufficientSurplus();
         balances[token][user] += expectedAmount;
-        trackedBalance[token] = cachedTracked + expectedAmount;
+        trackedBalance[token] += expectedAmount;
         emit Deposited(token, user, expectedAmount);
     }
     // Trader-only withdraw to arbitrary recipient. user == to is self-withdraw.

@@ -46,10 +46,8 @@ contract SeraSOR is SeraBase {
      *      - recipient = any address: sent directly to that wallet.
      * @param matches Array of match data (order0 = taker, order1 = maker in each leg)
      * @param routeSignature Single EIP-712 signature from the taker over the route hash
-     * @param initialDepositAmount Amount of the first token to pull from the taker's wallet (0 = use vault)
      */
-
-    function executeRoute(MatchData[] calldata matches, bytes calldata routeSignature, uint256 initialDepositAmount) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
+    function executeRoute(MatchData[] calldata matches, bytes calldata routeSignature) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
         if (matches.length == 0) revert EmptyRoute();
         if (matches.length > MAX_ROUTE_LEGS) revert TooManyLegs();
         // 1. Compute expected route hash from full taker order structs
@@ -63,6 +61,7 @@ contract SeraSOR is SeraBase {
         uint256 tableSize = (matches.length * 2) + 1;
         address[] memory transientTokens = new address[](tableSize);
         uint256[] memory transientAmounts = new uint256[](tableSize);
+        uint256 initialDepositAmount = matches[0].order0.initialDepositAmount;
         if (initialDepositAmount > 0) {
             address inputToken = matches[0].order0.fromToken;
             // Pull directly from the taker's wallet to the Sera matching engine
@@ -96,11 +95,11 @@ contract SeraSOR is SeraBase {
                 ++i;
             }
         }
-        // 5. Verify no unconsumed transient balances remain
-        //    Any leftover indicates a broken route (rounding dust, misconfigured legs).
-        //    Tokens held in Sera cannot be recovered automatically, so revert to protect taker.
+        // 5. Enforce transient zero-balance
+        //    Any leftover indicates a broken route (rounding dust, misconfigured legs) or positive slippage.
+        //    Tokens held in Sera cannot be recovered automatically, so we sweep them to the protocol treasury.
         for (uint256 i = 0; i < tableSize;) {
-            if (transientTokens[i] != address(0) && transientAmounts[i] > 0) revert InvalidRoute();
+            if (transientTokens[i] != address(0) && transientAmounts[i] > 0) sera.sweepTransientToProtocol(transientTokens[i], transientAmounts[i]);
             unchecked {
                 ++i;
             }
@@ -119,7 +118,7 @@ contract SeraSOR is SeraBase {
         for (uint256 i = 0; i < matches.length;) {
             Order calldata order = matches[i].order0;
             // Recompute the order struct hash with routeHash = bytes32(0) to prevent circular dependency during signing.
-            hashes[i] = keccak256(abi.encode(ORDER_TYPEHASH, order.user, order.expiration, order.feeBps, order.recipient, order.fromToken, order.toToken, order.fromAmount, order.toAmount, bytes32(0), order.uuid));
+            hashes[i] = keccak256(abi.encode(ORDER_TYPEHASH, order.user, order.expiration, order.feeBps, order.recipient, order.fromToken, order.toToken, order.fromAmount, order.toAmount, order.initialDepositAmount, bytes32(0), order.uuid));
             unchecked {
                 ++i;
             }
