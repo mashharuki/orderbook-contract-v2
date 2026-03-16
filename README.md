@@ -19,7 +19,7 @@ This repository contains **Solidity + Foundry** based order book matching contra
 - ✅ **Dual-Authorization Withdrawals**:
   - **Delayed**: User-initiated via `emergencyWithdraw()`, 7200 blocks (~24h) delay with 14400 blocks (~48h) expiration
   - **Instant**: Dual-signature (`executeInstantWithdrawDualSig`) with user + executor EIP-712 signatures
-- ✅ **Smart Order Routing (SOR)**: Multi-leg atomic routing via `SeraSOR.executeRoute()` with route binding (`routeHash`), single taker signature, and transient balance optimization
+- ✅ **Smart Order Routing (SOR)**: Multi-leg atomic routing via `SeraSOR.executeRoute()` with route binding (`routeHash`), single taker signature, transient balance optimization, signed first-leg funding via `initialDepositAmount`, and treasury sweeping for any leftover intermediate transient balances
 - ✅ **Dynamic Fee Structure**: Per-order configurable `feeBps` (uint48) + configurable slippage sharing via `SlippageShare` struct (maker/taker/protocol split)
 - ✅ **Ghost Liquidity Prevention**: Vault balance checked on every match
 - ✅ **Frozen User Policy**: Compromised accounts can be frozen (stops trading/deposits) but CAN withdraw
@@ -113,15 +113,17 @@ All documentation and diagrams have been moved to the `readme/` folder. For inte
 ### Architecture
 
 - **Solady Integration**: Replaced OpenZeppelin's `EIP712` and `ECDSA` with Solady's gas-optimized alternatives
-- **Order Struct Refactor**: `Order` now uses packed `uint48` for `expiration` and `feeBps`, includes `routeHash` for SOR binding and `uuid` for replay protection (removed `salt`/`createdAt`)
+- **Order Struct Refactor**: `Order` now uses packed `uint48` for `expiration` and `feeBps`, includes `initialDepositAmount` for signed SOR funding control, `routeHash` for SOR binding, and `uuid` for replay protection (removed `salt`/`createdAt`)
 - **Slippage Sharing**: Replaced `slippageCaptureBps` with `SlippageShare` struct (`makerShareBps`, `takerShareBps`, `protocolShareBps`, `totalBps`) for configurable profit splits
 - **Withdrawal System**: Dual-path withdrawals with 7200-block delay (24h) + 14400-block expiration (48h) for emergency path, or instant dual-signature path
+- **SOR Positive Slippage Handling**: Multi-leg routes no longer revert when intermediate legs produce surplus output. Final-leg positive slippage still follows the configured slippage split, while any route-end leftover intermediate transient balances are swept into the protocol treasury instead of reverting or remaining stuck in `Sera`
 
 ### Security
 
 - **Permit Front-run Protection**: `depositFundWithPermit` checks existing allowance before calling permit to avoid DoS
 - **Ghost Liquidity Prevention**: Vault balance checked on every match via `_validateMakerOrder`
 - **Route Binding**: SOR orders bound to specific `routeHash` preventing subset/reorder attacks
+- **Signed SOR Funding Source**: `initialDepositAmount` is signed inside the taker's first SOR order so executors cannot choose wallet-vs-vault funding at execution time
 - **Price Bounds**: `InvalidCostAmount` and `TokenMismatch` assertions in `SeraLib._executionValues`
 
 ### Gas Optimizations
@@ -131,7 +133,7 @@ All documentation and diagrams have been moved to the `readme/` folder. For inte
 - `unchecked` loop increments system-wide
 - Fail-fast validation in `_validateOrderCommon`
 - Cached `trackedBalance` in `Vault.sol` to avoid double SLOADs
-- `creditLedger` for safe ledger credits without re-approval
+- `creditLedger` now relies on a documented push-then-credit invariant, removing the old surplus check and avoiding future TOCTOU-style multi-trader races
 
 ### Cleanup
 

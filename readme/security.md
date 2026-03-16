@@ -37,3 +37,28 @@ ERC-777 callbacks and dangerous fallback loops are effectively sandboxed.
 - `Sera.sol` guards all entry points using `ReentrancyGuardTransient`.
 - Transient storage ensures that locks only last for the duration of the cross-contract execution, saving significant gas while isolating malicious token behavior.
 - Wrappers like `SeraSOR.sol` enter `Sera.settleRoutedLeg()` sequentially; each entry enters and exits transient locks cleanly.
+
+## 7. SOR Leftover Intermediate Surplus
+`SeraSOR` executes intermediate route legs using transient in-memory balances rather than immediate Vault deposits. This keeps routing gas-efficient, but it also means downstream legs consume statically signed amounts.
+
+If an intermediate leg produces more output than later signed legs are configured to consume, that extra balance cannot be dynamically forwarded on-chain. The protocol now handles this by sweeping any leftover transient balance remaining at route end into the protocol treasury.
+
+This avoids two previous failure modes:
+- valid routes reverting when intermediate positive slippage appears
+- physical tokens remaining stranded in `Sera`
+
+Important distinction:
+- final-leg positive slippage still follows the configured `SlippageShare` split and reaches the taker recipient or Vault balance normally
+- only route-end residual intermediate balances are treasury-swept
+
+## 8. Vault `creditLedger` Caller Invariant
+`Vault.creditLedger()` no longer checks physical token surplus on-chain before crediting balances. Instead, it relies on a strict caller invariant:
+
+> the caller must transfer the exact token amount into the Vault before calling `creditLedger()` in the same transaction
+
+This is the pattern used by `Sera` during normal settlement and treasury sweeps. Removing the old balance-delta check eliminates a TOCTOU-style dependency on shared physical balances and makes the Vault safer if multiple contracts ever hold `TRADER_ROLE` in the future.
+
+This is safe under the intended architecture because:
+- `creditLedger()` is restricted to `TRADER_ROLE`
+- trusted trader contracts already follow the push-then-credit flow
+- violating the invariant would create insolvency, so any future `TRADER_ROLE` integration must preserve it exactly
