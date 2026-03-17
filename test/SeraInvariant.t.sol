@@ -32,14 +32,7 @@ contract SeraInvariantHandler is TestHelper {
     uint256 public ghost_totalWithdrawalsSGD;
     uint256 public ghost_matchCount;
 
-    constructor(
-        MockStableCoin _usdt,
-        MockStableCoin _sgd,
-        Sera _orderBook,
-        SeraBatcher _batcher,
-        address _owner,
-        uint256 _ownerPK
-    ) {
+    constructor(MockStableCoin _usdt, MockStableCoin _sgd, Sera _orderBook, SeraBatcher _batcher, address _owner, uint256 _ownerPK) {
         USDT = _usdt;
         SGD = _sgd;
         orderBook = _orderBook;
@@ -93,40 +86,9 @@ contract SeraInvariantHandler is TestHelper {
         uint256 bal2 = vault.balanceOf(address(SGD), user2);
         if (bal1 == 0 || bal2 == 0) return;
         amount = bound(amount, 1, bal1 < bal2 ? bal1 : bal2);
-        Order memory o1 = Order({
-            user: user1,
-            fromToken: address(USDT),
-            toToken: address(SGD),
-            fromAmount: amount,
-            toAmount: amount,
-            initialDepositAmount: 0,
-            feeBps: 0,
-            recipient: user1,
-            expiration: uint48(block.timestamp + 1 days),
-            uuid: nextUuid++,
-            routeHash: bytes32(0)
-        });
-        Order memory o2 = Order({
-            user: user2,
-            fromToken: address(SGD),
-            toToken: address(USDT),
-            fromAmount: amount,
-            toAmount: amount,
-            initialDepositAmount: 0,
-            feeBps: 0,
-            recipient: user2,
-            expiration: uint48(block.timestamp + 1 days),
-            uuid: nextUuid++,
-            routeHash: bytes32(0)
-        });
-        MatchData memory data = MatchData({
-            order0: o1,
-            signature0: _signOrder(pk1, o1, orderBook),
-            matchAmount0: amount,
-            order1: o2,
-            signature1: _signOrder(pk2, o2, orderBook),
-            matchAmount1: amount
-        });
+        Order memory o1 = Order({user: user1, fromToken: address(USDT), toToken: address(SGD), fromAmount: amount, toAmount: amount, initialDepositAmount: 0, feeBps: 0, recipient: user1, expiration: uint48(block.timestamp + 1 days), uuid: nextUuid++, routeHash: bytes32(0)});
+        Order memory o2 = Order({user: user2, fromToken: address(SGD), toToken: address(USDT), fromAmount: amount, toAmount: amount, initialDepositAmount: 0, feeBps: 0, recipient: user2, expiration: uint48(block.timestamp + 1 days), uuid: nextUuid++, routeHash: bytes32(0)});
+        MatchData memory data = MatchData({order0: o1, signature0: _signOrder(pk1, o1, orderBook), matchAmount0: amount, order1: o2, signature1: _signOrder(pk2, o2, orderBook), matchAmount1: amount});
         vm.prank(owner);
         try orderBook.matchOrders(data) {
             ghost_matchCount++;
@@ -145,41 +107,10 @@ contract SeraInvariantHandler is TestHelper {
         uint256 bal2 = vault.balanceOf(address(SGD), user2);
         if (bal1 == 0 || bal2 == 0) return;
         amount = bound(amount, 1, bal1 < bal2 ? bal1 : bal2);
-        Order memory o1 = Order({
-            user: user1,
-            fromToken: address(USDT),
-            toToken: address(SGD),
-            fromAmount: amount,
-            toAmount: amount,
-            initialDepositAmount: 0,
-            feeBps: 0,
-            recipient: user1,
-            expiration: uint48(block.timestamp + 1 days),
-            uuid: nextUuid++,
-            routeHash: bytes32(0)
-        });
-        Order memory o2 = Order({
-            user: user2,
-            fromToken: address(SGD),
-            toToken: address(USDT),
-            fromAmount: amount,
-            toAmount: amount,
-            initialDepositAmount: 0,
-            feeBps: 0,
-            recipient: user2,
-            expiration: uint48(block.timestamp + 1 days),
-            uuid: nextUuid++,
-            routeHash: bytes32(0)
-        });
+        Order memory o1 = Order({user: user1, fromToken: address(USDT), toToken: address(SGD), fromAmount: amount, toAmount: amount, initialDepositAmount: 0, feeBps: 0, recipient: user1, expiration: uint48(block.timestamp + 1 days), uuid: nextUuid++, routeHash: bytes32(0)});
+        Order memory o2 = Order({user: user2, fromToken: address(SGD), toToken: address(USDT), fromAmount: amount, toAmount: amount, initialDepositAmount: 0, feeBps: 0, recipient: user2, expiration: uint48(block.timestamp + 1 days), uuid: nextUuid++, routeHash: bytes32(0)});
         MatchData[] memory matches = new MatchData[](1);
-        matches[0] = MatchData({
-            order0: o1,
-            signature0: _signOrder(pk1, o1, orderBook),
-            matchAmount0: amount,
-            order1: o2,
-            signature1: _signOrder(pk2, o2, orderBook),
-            matchAmount1: amount
-        });
+        matches[0] = MatchData({order0: o1, signature0: _signOrder(pk1, o1, orderBook), matchAmount0: amount, order1: o2, signature1: _signOrder(pk2, o2, orderBook), matchAmount1: amount});
         vm.prank(owner);
         try batcher.batchMatchOrders(matches) returns (uint256 failedMask) {
             if (failedMask == 0) ghost_matchCount++;
@@ -198,41 +129,10 @@ contract SeraInvariantHandler is TestHelper {
         uint256 bal2 = vault.balanceOf(address(SGD), user2);
         if (bal1 == 0 || bal2 == 0) return;
         amount = bound(amount, 1, bal1 < bal2 ? bal1 : bal2);
-        Order memory o1 = Order({
-            user: user1,
-            fromToken: address(USDT),
-            toToken: address(SGD),
-            fromAmount: amount,
-            toAmount: amount,
-            initialDepositAmount: 0,
-            feeBps: 0,
-            recipient: user1,
-            expiration: uint48(block.timestamp + 1 days),
-            uuid: nextUuid++,
-            routeHash: bytes32(0)
-        });
-        Order memory o2 = Order({
-            user: user2,
-            fromToken: address(SGD),
-            toToken: address(USDT),
-            fromAmount: amount,
-            toAmount: amount,
-            initialDepositAmount: 0,
-            feeBps: 0,
-            recipient: user2,
-            expiration: uint48(block.timestamp + 1 days),
-            uuid: nextUuid++,
-            routeHash: bytes32(0)
-        });
+        Order memory o1 = Order({user: user1, fromToken: address(USDT), toToken: address(SGD), fromAmount: amount, toAmount: amount, initialDepositAmount: 0, feeBps: 0, recipient: user1, expiration: uint48(block.timestamp + 1 days), uuid: nextUuid++, routeHash: bytes32(0)});
+        Order memory o2 = Order({user: user2, fromToken: address(SGD), toToken: address(USDT), fromAmount: amount, toAmount: amount, initialDepositAmount: 0, feeBps: 0, recipient: user2, expiration: uint48(block.timestamp + 1 days), uuid: nextUuid++, routeHash: bytes32(0)});
         MatchData[] memory matches = new MatchData[](1);
-        matches[0] = MatchData({
-            order0: o1,
-            signature0: _signOrder(pk1, o1, orderBook),
-            matchAmount0: amount,
-            order1: o2,
-            signature1: _signOrder(pk2, o2, orderBook),
-            matchAmount1: amount
-        });
+        matches[0] = MatchData({order0: o1, signature0: _signOrder(pk1, o1, orderBook), matchAmount0: amount, order1: o2, signature1: _signOrder(pk2, o2, orderBook), matchAmount1: amount});
         vm.prank(owner);
         try batcher.batchMatchOrdersAtomic(matches) {
             ghost_matchCount++;

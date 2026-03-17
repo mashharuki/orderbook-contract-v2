@@ -78,7 +78,7 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
         // Taker wants to trade 100 USDC -> 1 ETH -> 0.1 BTC
         // Leg 1: Taker pays 100 USDC for 1 ETH
         // Maker 1 wants to trade 2 ETH for 100 USDC (positive slippage of 1 ETH!)
-        
+
         Order memory takerLeg1 = Order({
             user: taker,
             fromToken: address(usdc),
@@ -122,19 +122,7 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
             routeHash: bytes32(0)
         });
 
-        Order memory makerLeg2 = Order({
-            user: maker2,
-            fromToken: address(btc),
-            toToken: address(eth),
-            fromAmount: 0.1 ether,
-            toAmount: 1 ether,
-            initialDepositAmount: 0,
-            feeBps: 0,
-            recipient: maker2,
-            expiration: uint48(block.timestamp + 1 days),
-            uuid: 4,
-            routeHash: bytes32(0)
-        });
+        Order memory makerLeg2 = Order({user: maker2, fromToken: address(btc), toToken: address(eth), fromAmount: 0.1 ether, toAmount: 1 ether, initialDepositAmount: 0, feeBps: 0, recipient: maker2, expiration: uint48(block.timestamp + 1 days), uuid: 4, routeHash: bytes32(0)});
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData({
@@ -145,15 +133,8 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
             signature1: _signOrder(maker1PK, makerLeg1, sera),
             matchAmount1: 2 ether // Fill all 2 ETH
         });
-        
-        matches[1] = MatchData({
-            order0: takerLeg2,
-            signature0: bytes(""),
-            matchAmount0: 1 ether,
-            order1: makerLeg2,
-            signature1: _signOrder(maker2PK, makerLeg2, sera),
-            matchAmount1: 0.1 ether
-        });
+
+        matches[1] = MatchData({order0: takerLeg2, signature0: bytes(""), matchAmount0: 1 ether, order1: makerLeg2, signature1: _signOrder(maker2PK, makerLeg2, sera), matchAmount1: 0.1 ether});
 
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
@@ -165,20 +146,21 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
         // 0.5 ETH is captured during leg 1 settlement and 0.5 ETH remains unconsumed after leg 2.
         assertEq(sera.vault().balanceOf(address(eth), owner), 1 ether, "Protocol should receive positive slippage");
     }
+
     function test_PoC_SOR_Positive_Slippage_Linear() public {
         MockStableCoin dai = new MockStableCoin("DAI");
         vm.prank(owner);
         _whitelistToken(sera, address(dai), true, 1);
 
         (address maker3, uint256 maker3PK) = makeAddrAndKey("maker3");
-        
+
         // Balances
         _mintAndDeposit(maker1, address(eth), 10 ether, sera);
         _mintAndDeposit(maker2, address(btc), 10 ether, sera);
         _mintAndDeposit(maker3, address(dai), 1000 ether, sera);
 
         // Path: USDC -> ETH -> BTC -> DAI
-        
+
         // Leg 1: 100 USDC -> 1 ETH (Maker gives 1.5 ETH = 0.5 ETH pos slip)
         Order memory t1 = Order({user: taker, expiration: uint48(block.timestamp + 1 days), feeBps: 0, recipient: address(sera), fromToken: address(usdc), toToken: address(eth), fromAmount: 100 ether, toAmount: 1 ether, initialDepositAmount: 0, routeHash: bytes32(0), uuid: 11});
         Order memory m1 = Order({user: maker1, expiration: uint48(block.timestamp + 1 days), feeBps: 0, recipient: maker1, fromToken: address(eth), toToken: address(usdc), fromAmount: 1.5 ether, toAmount: 100 ether, initialDepositAmount: 0, routeHash: bytes32(0), uuid: 12});
@@ -215,7 +197,7 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
 
         (address maker3, uint256 maker3PK) = makeAddrAndKey("maker3");
         (address maker4, uint256 maker4PK) = makeAddrAndKey("maker4");
-        
+
         _mintAndDeposit(maker1, address(eth), 10 ether, sera);
         _mintAndDeposit(maker2, address(dai), 1000 ether, sera);
         _mintAndDeposit(maker3, address(btc), 10 ether, sera);
@@ -269,7 +251,7 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
         // Branch 2: 0.5 ETH -> 500 DAI
 
         (address maker3, uint256 maker3PK) = makeAddrAndKey("maker3");
-        
+
         _mintAndDeposit(maker1, address(eth), 10 ether, sera);
         _mintAndDeposit(maker2, address(btc), 10 ether, sera);
         _mintAndDeposit(maker3, address(dai), 1000 ether, sera);

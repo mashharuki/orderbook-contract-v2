@@ -22,22 +22,7 @@ abstract contract TestHelper is Test {
      * @param sera The Sera contract (for domain separator params)
      */
     function _signOrder(uint256 pk, Order memory p, Sera sera) internal view returns (bytes memory) {
-        bytes32 structHash = keccak256(
-            abi.encode(
-                ORDER_TYPEHASH,
-                p.user,
-                p.expiration,
-                p.feeBps,
-                p.recipient,
-                p.fromToken,
-                p.toToken,
-                p.fromAmount,
-                p.toAmount,
-                p.initialDepositAmount,
-                p.routeHash,
-                p.uuid
-            )
-        );
+        bytes32 structHash = keccak256(abi.encode(ORDER_TYPEHASH, p.user, p.expiration, p.feeBps, p.recipient, p.fromToken, p.toToken, p.fromAmount, p.toAmount, p.initialDepositAmount, p.routeHash, p.uuid));
         bytes32 domainSeparator = sera.DOMAIN_SEPARATOR();
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
@@ -66,13 +51,8 @@ abstract contract TestHelper is Test {
     /**
      * @notice Sign a permit (EIP-2612) for a token
      */
-    function _signPermit(uint256 pk, address token, address spender, uint256 amount, uint256 deadline)
-        internal
-        view
-        returns (bytes memory)
-    {
-        bytes32 PERMIT_TYPEHASH =
-            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    function _signPermit(uint256 pk, address token, address spender, uint256 amount, uint256 deadline) internal view returns (bytes memory) {
+        bytes32 PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
         bytes32 DOMAIN_SEPARATOR = MockStableCoin(token).DOMAIN_SEPARATOR();
         uint256 nonce = MockStableCoin(token).nonces(vm.addr(pk));
 
