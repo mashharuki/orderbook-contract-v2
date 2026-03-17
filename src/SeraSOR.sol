@@ -47,6 +47,7 @@ contract SeraSOR is SeraBase {
      * @param matches Array of match data (order0 = taker, order1 = maker in each leg)
      * @param routeSignature Single EIP-712 signature from the taker over the route hash
      */
+
     function executeRoute(MatchData[] calldata matches, bytes calldata routeSignature) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
         if (matches.length == 0) revert EmptyRoute();
         if (matches.length > MAX_ROUTE_LEGS) revert TooManyLegs();
