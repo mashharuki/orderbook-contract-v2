@@ -110,7 +110,11 @@ contract SeraCoverageExtrasTest is TestHelper {
 
         WithdrawIntent memory intent = WithdrawIntent({user: user, tokens: tokens, amounts: amounts, recipient: address(0), deadline: block.timestamp + 1 hours, uuid: 999});
 
-        bytes32 structHash = keccak256(abi.encode(keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"), intent.user, keccak256(abi.encodePacked(intent.tokens)), keccak256(abi.encodePacked(intent.amounts)), intent.recipient, intent.deadline, intent.uuid));
+        bytes32[] memory tokenWords = new bytes32[](intent.tokens.length);
+        for (uint256 i; i < intent.tokens.length; i++) {
+            tokenWords[i] = bytes32(uint256(uint160(intent.tokens[i])));
+        }
+        bytes32 structHash = keccak256(abi.encode(keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"), intent.user, keccak256(abi.encodePacked(tokenWords)), keccak256(abi.encodePacked(intent.amounts)), intent.recipient, intent.deadline, intent.uuid));
         bytes32 typeHash = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
         bytes32 domainSeparator = keccak256(abi.encode(typeHash, keccak256(bytes(sera.NAME())), keccak256(bytes(sera.VERSION())), block.chainid, address(sera)));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));

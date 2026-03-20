@@ -125,6 +125,8 @@ All documentation and diagrams have been moved to the `readme/` folder. For inte
 - **Route Binding**: SOR orders bound to specific `routeHash` preventing subset/reorder attacks
 - **Signed SOR Funding Source**: `initialDepositAmount` is signed inside the taker's first SOR order so executors cannot choose wallet-vs-vault funding at execution time
 - **Price Bounds**: `InvalidCostAmount` and `TokenMismatch` assertions in `SeraLib._executionValues`
+- **`creditLedger` Zero-Address Guard**: Added `user != address(0)` sanity check in `Vault.creditLedger()` to prevent accidentally burning vault balance to the zero address
+- **EIP-712 Canonical Array Encoding**: Fixed `executeInstantWithdrawDualSig` to hash `address[]` tokens as 32-byte-padded words (per EIP-712 spec) instead of 20-byte packed encoding, ensuring full compatibility with standard wallets and SDKs
 
 ### Gas Optimizations
 

@@ -350,7 +350,11 @@ contract SeraTest is TestHelper {
 
         WithdrawIntent memory intent = WithdrawIntent({user: user, tokens: tokens, amounts: amounts, recipient: user, deadline: block.timestamp + 1 hours, uuid: 123});
 
-        bytes32 structHash = keccak256(abi.encode(keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"), intent.user, keccak256(abi.encodePacked(intent.tokens)), keccak256(abi.encodePacked(intent.amounts)), intent.recipient, intent.deadline, intent.uuid));
+        bytes32[] memory tokenWords = new bytes32[](intent.tokens.length);
+        for (uint256 i; i < intent.tokens.length; i++) {
+            tokenWords[i] = bytes32(uint256(uint160(intent.tokens[i])));
+        }
+        bytes32 structHash = keccak256(abi.encode(keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"), intent.user, keccak256(abi.encodePacked(tokenWords)), keccak256(abi.encodePacked(intent.amounts)), intent.recipient, intent.deadline, intent.uuid));
         bytes32 digest = _hashTypedData("Sera", "1", address(orderBook), structHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPK, digest);
         bytes memory userSig = abi.encodePacked(r, s, v);

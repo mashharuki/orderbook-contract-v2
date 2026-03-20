@@ -48,6 +48,7 @@ contract Vault is IVault, ReentrancyGuardTransient, AccessControl {
      */
 
     function creditLedger(address user, address token, uint256 expectedAmount) external override nonReentrant onlyRole(TRADER_ROLE) {
+        if (user == address(0)) revert ZeroAddress();
         if (blacklisted[user]) revert BlacklistedUser(user);
         if (expectedAmount == 0) revert ZeroAmount();
         balances[token][user] += expectedAmount;

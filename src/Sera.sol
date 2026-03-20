@@ -185,7 +185,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         if (isUuidExecuted[intent.user][intent.uuid]) revert UuidAlreadyUsed();
         if (intent.tokens.length != intent.amounts.length) revert LengthMismatch();
         if (intent.tokens.length == 0 || intent.tokens.length > 20) revert InvalidTokenCount();
-        bytes32 intentHash = keccak256(abi.encode(WITHDRAW_INTENT_TYPEHASH, intent.user, keccak256(abi.encodePacked(intent.tokens)), keccak256(abi.encodePacked(intent.amounts)), intent.recipient, intent.deadline, intent.uuid));
+        bytes32 intentHash = keccak256(abi.encode(WITHDRAW_INTENT_TYPEHASH, intent.user, _hashAddressArray(intent.tokens), keccak256(abi.encodePacked(intent.amounts)), intent.recipient, intent.deadline, intent.uuid));
         _validateSignature(intent.user, intentHash, userSignature);
         if (executorSignature.length != 65 && executorSignature.length != 64) revert InvalidSignatureLength();
         bytes32 digest = _hashTypedData(intentHash);
@@ -432,5 +432,13 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     function sweepTransientToProtocol(address token, uint256 amount) external onlyRole(EXECUTOR_ROLE_CACHED) nonReentrant {
         IERC20(token).safeTransfer(address(vault), amount);
         vault.creditLedger(treasury, token, amount);
+    }
+
+    function _hashAddressArray(address[] calldata arr) private pure returns (bytes32) {
+        bytes32[] memory words = new bytes32[](arr.length);
+        for (uint256 i; i < arr.length; i++) {
+            words[i] = bytes32(uint256(uint160(arr[i])));
+        }
+        return keccak256(abi.encodePacked(words));
     }
 }
