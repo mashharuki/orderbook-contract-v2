@@ -146,7 +146,7 @@ contract SeraCoverageExtrasTest is TestHelper {
         MatchData memory m = MatchData({order0: o0, signature0: _signOrder(user1PK, o0, sera), matchAmount0: 1000 ether, order1: o1, signature1: _signOrder(user2PK, o1, sera), matchAmount1: 100 ether});
 
         uint256 beforeVaultCredit = sera.vault().balanceOf(address(usdt), user2);
-        sera.matchOrders(m);
+        sera.matchOrders(m, type(uint256).max);
         uint256 afterVaultCredit = sera.vault().balanceOf(address(usdt), user2);
 
         assertEq(afterVaultCredit - beforeVaultCredit, 1000 ether);
@@ -197,7 +197,7 @@ contract SeraCoverageExtrasTest is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData({order0: Order({user: address(0), fromToken: address(0), toToken: address(0), fromAmount: 0, toAmount: 0, initialDepositAmount: 0, feeBps: 0, recipient: address(0), expiration: 0, uuid: 0, routeHash: bytes32(0)}), signature0: hex"", matchAmount0: 1, order1: Order({user: address(0), fromToken: address(0), toToken: address(0), fromAmount: 0, toAmount: 0, initialDepositAmount: 0, feeBps: 0, recipient: address(0), expiration: 0, uuid: 0, routeHash: bytes32(0)}), signature1: hex"", matchAmount1: 1});
 
-        uint256 failedMask = fakeBatcher.batchMatchOrders(matches);
+        uint256 failedMask = fakeBatcher.batchMatchOrders(matches, type(uint256).max);
         assertEq(failedMask, 1);
     }
 
@@ -232,7 +232,7 @@ contract SeraCoverageExtrasTest is TestHelper {
         matches[1].order0.routeHash = routeHash;
 
         vm.prank(executor);
-        sor.executeRoute(matches, _signRoute(takerPK, routeHash, sera));
+        sor.executeRoute(matches, _signRoute(takerPK, routeHash, sera), type(uint256).max);
 
         assertEq(btc.balanceOf(taker), 1 ether);
     }

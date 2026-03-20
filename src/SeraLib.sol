@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 error InvalidCostAmount();
+error MatchExpired();
 /**
  * @notice Data structure for a single order
  */
