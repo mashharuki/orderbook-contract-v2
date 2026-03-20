@@ -308,3 +308,43 @@ By moving `initialDepositAmount` into the signed `Order` payload and `ORDER_TYPE
 - no new trust assumptions are introduced
 - the user regains cryptographic control over route funding source selection
 - the fix is minimal because it reuses the existing EIP-712 order signing flow instead of introducing a second signed parameter path
+
+---
+
+## 15. Pre-Audit Fix: `Vault.creditLedger` Zero-Address Guard
+
+**Location:** `Vault.sol` - `creditLedger()`
+
+### Resolved Before Audit
+`creditLedger()` previously lacked a `user != address(0)` check. While the function is only callable by `TRADER_ROLE` (the trusted `Sera.sol` engine), a defensive guard has been added as a belt-and-suspenders measure to prevent any future code path from accidentally crediting vault balance to the zero address and making it irrecoverable.
+
+```solidity
+if (user == address(0)) revert ZeroAddress();
+```
+
+This check is consistent with the existing zero-address guards already present on `withdraw()` and `transferLedger()`.
+
+---
+
+## 16. Pre-Audit Fix: EIP-712 Canonical Encoding for `address[]` in `WithdrawIntent`
+
+**Location:** `Sera.sol` - `executeInstantWithdrawDualSig()`
+
+### Resolved Before Audit
+The EIP-712 specification mandates that each `address` element in an array field is encoded as a 32-byte left-zero-padded word. The previous implementation hashed `intent.tokens` using `abi.encodePacked(address[])`, which packs each address as 20 bytes.
+
+This produced a struct hash incompatible with the output of standard wallet implementations (MetaMask, Rabby) and SDK utilities (`signTypedData` in ethers.js and viem), which all follow the canonical 32-byte-per-element encoding rule.
+
+The fix introduces a private `_hashAddressArray()` helper:
+
+```solidity
+function _hashAddressArray(address[] calldata arr) private pure returns (bytes32) {
+    bytes32[] memory words = new bytes32[](arr.length);
+    for (uint256 i; i < arr.length; i++) {
+        words[i] = bytes32(uint256(uint160(arr[i])));
+    }
+    return keccak256(abi.encodePacked(words));
+}
+```
+
+Note: `uint256[]` amounts already used the correct encoding — `abi.encodePacked(uint256[])` produces 32-byte-per-element output since `uint256` is natively 32 bytes — and required no change.

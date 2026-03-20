@@ -58,6 +58,13 @@ Important distinction:
 
 This is the pattern used by `Sera` during normal settlement and treasury sweeps. Removing the old balance-delta check eliminates a TOCTOU-style dependency on shared physical balances and makes the Vault safer if multiple contracts ever hold `TRADER_ROLE` in the future.
 
+`creditLedger()` also enforces `user != address(0)` as a sanity guard to ensure no vault balance can ever be credited to the zero address, preventing irrecoverable ledger entries.
+
+## 9. EIP-712 Canonical Array Encoding in `executeInstantWithdrawDualSig`
+The `WithdrawIntent` struct contains an `address[]` tokens field. Per the EIP-712 specification, each `address` element in an array must be encoded as a 32-byte left-zero-padded word before hashing. Using `abi.encodePacked(address[])` would pack each address into 20 bytes, producing a hash incompatible with standard wallets (MetaMask, Rabby) and SDKs (ethers.js, viem).
+
+The implementation uses a private `_hashAddressArray()` helper that casts each address to `bytes32` before concatenating and hashing, ensuring full EIP-712 compliance and interoperability with all standard signing tools.
+
 This is safe under the intended architecture because:
 - `creditLedger()` is restricted to `TRADER_ROLE`
 - trusted trader contracts already follow the push-then-credit flow
