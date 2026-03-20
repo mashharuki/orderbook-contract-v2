@@ -3,6 +3,7 @@
 pragma solidity 0.8.24;
 
 import "./SeraBase.sol";
+import {MatchExpired} from "./SeraLib.sol";
 /**
  * @title SeraBatcher - Unified Batch Order Matching
  * @notice Combines best-effort (continue-on-error) and FOK (all-or-nothing) batch matching,
@@ -40,10 +41,11 @@ contract SeraBatcher is SeraBase {
      * @return failedMask Bitmask where bit `i` is 1 if that specific match failed.
      */
 
-    function batchMatchOrders(MatchData[] calldata _matches) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused returns (uint256 failedMask) {
+    function batchMatchOrders(MatchData[] calldata _matches, uint256 deadline) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused returns (uint256 failedMask) {
+        if (block.timestamp > deadline) revert MatchExpired();
         if (_matches.length > MAX_BATCH_SIZE) revert TooManyOrders();
         for (uint256 i = 0; i < _matches.length;) {
-            try sera.matchOrders(_matches[i]) {}
+            try sera.matchOrders(_matches[i], deadline) {}
             catch (bytes memory lowLevelData) {
                 failedMask |= (1 << i);
                 bytes32 h0 = SeraLib.getOrderHashCalldata(_matches[i].order0);
@@ -62,10 +64,11 @@ contract SeraBatcher is SeraBase {
      * @param _matches Array of match instructions (max 20 to prevent gas limit issues)
      */
 
-    function batchMatchOrdersAtomic(MatchData[] calldata _matches) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
+    function batchMatchOrdersAtomic(MatchData[] calldata _matches, uint256 deadline) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
+        if (block.timestamp > deadline) revert MatchExpired();
         if (_matches.length > MAX_BATCH_SIZE) revert TooManyOrders();
         for (uint256 i = 0; i < _matches.length;) {
-            sera.matchOrders(_matches[i]);
+            sera.matchOrders(_matches[i], deadline);
             unchecked {
                 ++i;
             }
@@ -80,7 +83,8 @@ contract SeraBatcher is SeraBase {
      * @return failedMask Bitmask where bit `i` is 1 if that specific atomic batch or single match failed, sequentially. Designed this way so failures can be recognised instantly by reading the return value. If > 0, it means there are failures. By checking the bitmask, we can know which specific atomic batch or single match failed and check the result from the emitted event.
      */
 
-    function batchMatchMixed(AtomicBatch[] calldata _atomicBatches, MatchData[] calldata _singleMatches) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused returns (uint256 failedMask) {
+    function batchMatchMixed(AtomicBatch[] calldata _atomicBatches, MatchData[] calldata _singleMatches, uint256 deadline) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused returns (uint256 failedMask) {
+        if (block.timestamp > deadline) revert MatchExpired();
         if (_atomicBatches.length > MAX_BATCH_SIZE) revert TooManyBatches();
         if (_singleMatches.length > MAX_BATCH_SIZE) revert TooManyOrders();
         // 1. Process Atomic Sub-Batches
@@ -88,7 +92,7 @@ contract SeraBatcher is SeraBase {
             // NOTE: Uses `this.batchMatchOrdersAtomic()` (external self-call) intentionally
             // to get try/catch revert isolation — Solidity only supports try/catch on external calls.
             // The onlySeraRole check inside re-validates this contract's EXECUTOR_ROLE (not the original caller).
-            try this.batchMatchOrdersAtomic(_atomicBatches[i].matches) {}
+            try this.batchMatchOrdersAtomic(_atomicBatches[i].matches, deadline) {}
             catch (bytes memory lowLevelData) {
                 failedMask |= (1 << i);
                 emit AtomicBatchFailed(i, lowLevelData);
@@ -99,7 +103,7 @@ contract SeraBatcher is SeraBase {
         }
         // 2. Process Independent Single Orders
         for (uint256 i = 0; i < _singleMatches.length;) {
-            try sera.matchOrders(_singleMatches[i]) {}
+            try sera.matchOrders(_singleMatches[i], deadline) {}
             catch (bytes memory lowLevelData) {
                 failedMask |= (1 << (_atomicBatches.length + i));
                 bytes32 h0 = SeraLib.getOrderHashCalldata(_singleMatches[i].order0);

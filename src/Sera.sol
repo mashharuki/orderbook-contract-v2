@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interface/IVault.sol";
 import "./SeraAdmin.sol";
-import {SeraLib, Order, MatchData, WithdrawIntent, InvalidCostAmount, ORDER_TYPEHASH, ROUTE_TYPEHASH, WITHDRAW_INTENT_TYPEHASH, BPS_DENOMINATOR} from "./SeraLib.sol";
+import {SeraLib, MatchExpired, Order, MatchData, WithdrawIntent, InvalidCostAmount, ORDER_TYPEHASH, ROUTE_TYPEHASH, WITHDRAW_INTENT_TYPEHASH, BPS_DENOMINATOR} from "./SeraLib.sol";
 /**
  * @title Sera - Orderbook DEX with Vault Custody
  * @notice This contract implements a signed order matching system with:
@@ -213,7 +213,8 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
      *      Atomic primitive used by SeraBatcher.
      * @param _match Match data containing both orders and signatures
      */
-    function matchOrders(MatchData calldata _match) external onlyRole(EXECUTOR_ROLE) whenNotPaused nonReentrant {
+    function matchOrders(MatchData calldata _match, uint256 deadline) external onlyRole(EXECUTOR_ROLE) whenNotPaused nonReentrant {
+        if (block.timestamp > deadline) revert MatchExpired();
         bytes32 orderHash0 = SeraLib.getOrderHashCalldata(_match.order0);
         bytes32 orderHash1 = SeraLib.getOrderHashCalldata(_match.order1);
         // Make sure the orders are valid, hash check is performed in this function

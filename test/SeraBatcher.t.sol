@@ -50,7 +50,7 @@ contract SeraBatcherTest is TestHelper {
         matches[0] = _makePair(1000 ether, 100 ether, 1, 2);
 
         vm.prank(executor);
-        uint256 failedMask = batcher.batchMatchOrders(matches);
+        uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
         assertEq(failedMask, 0);
     }
 
@@ -61,7 +61,7 @@ contract SeraBatcherTest is TestHelper {
         matches[1].order0.expiration = uint48(block.timestamp - 1);
 
         vm.prank(executor);
-        uint256 failedMask = batcher.batchMatchOrders(matches);
+        uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
         assertEq(failedMask, 2);
     }
 
@@ -69,7 +69,7 @@ contract SeraBatcherTest is TestHelper {
         MatchData[] memory matches = new MatchData[](21);
         vm.prank(executor);
         vm.expectRevert(SeraBatcher.TooManyOrders.selector);
-        batcher.batchMatchOrders(matches);
+        batcher.batchMatchOrders(matches, type(uint256).max);
     }
 
     function test_batchMatchOrders_RevertsIfCallerNotExecutorRoleInSera() public {
@@ -77,7 +77,7 @@ contract SeraBatcherTest is TestHelper {
         matches[0] = _makePair(100 ether, 10 ether, 31, 32);
 
         vm.expectRevert(abi.encodeWithSelector(SeraBase.Unauthorized.selector, address(this), sera.EXECUTOR_ROLE()));
-        batcher.batchMatchOrders(matches);
+        batcher.batchMatchOrders(matches, type(uint256).max);
     }
 
     // ======== FOK Atomic Batch Tests ========
@@ -88,7 +88,7 @@ contract SeraBatcherTest is TestHelper {
         matches[1] = _makePair(700 ether, 70 ether, 3, 4);
 
         vm.prank(executor);
-        batcher.batchMatchOrdersAtomic(matches);
+        batcher.batchMatchOrdersAtomic(matches, type(uint256).max);
 
         assertEq(usdt.balanceOf(maker2), 1000 ether);
         assertEq(sgd.balanceOf(maker1), 100 ether);
@@ -107,7 +107,7 @@ contract SeraBatcherTest is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(); // Will revert on the second match
-        batcher.batchMatchOrdersAtomic(matches);
+        batcher.batchMatchOrdersAtomic(matches, type(uint256).max);
 
         // Verification: First match SHOULD be rolled back
         assertEq(usdt.balanceOf(maker1), beforeTakerUsdt, "Atomic: Taker USDT should be unchanged");
@@ -119,7 +119,7 @@ contract SeraBatcherTest is TestHelper {
         matches[0] = _makePair(100 ether, 10 ether, 31, 32);
 
         vm.expectRevert(abi.encodeWithSelector(SeraBase.Unauthorized.selector, address(this), sera.EXECUTOR_ROLE()));
-        batcher.batchMatchOrdersAtomic(matches);
+        batcher.batchMatchOrdersAtomic(matches, type(uint256).max);
     }
 
     // ======== Pause Tests ========
@@ -133,13 +133,13 @@ contract SeraBatcherTest is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert();
-        batcher.batchMatchOrders(matches);
+        batcher.batchMatchOrders(matches, type(uint256).max);
 
         vm.prank(owner);
         sera.unpause();
 
         vm.prank(executor);
-        uint256 failedMask = batcher.batchMatchOrders(matches);
+        uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
         assertEq(failedMask, 0);
     }
 
@@ -156,7 +156,7 @@ contract SeraBatcherTest is TestHelper {
         singles[0] = _makePair(500 ether, 50 ether, 105, 106);
 
         vm.prank(executor);
-        uint256 failedMask = batcher.batchMatchMixed(atomics, singles);
+        uint256 failedMask = batcher.batchMatchMixed(atomics, singles, type(uint256).max);
 
         // 1 atomic, 1 single. Both successful = 0
         assertEq(failedMask, 0, "No batch or single failed");
@@ -197,7 +197,7 @@ contract SeraBatcherTest is TestHelper {
         bytes32 h1 = keccak256(abi.encode(ORDER_TYPEHASH, singles[1].order1.user, singles[1].order1.expiration, singles[1].order1.feeBps, singles[1].order1.recipient, singles[1].order1.fromToken, singles[1].order1.toToken, singles[1].order1.fromAmount, singles[1].order1.toAmount, singles[1].order1.initialDepositAmount, singles[1].order1.routeHash, singles[1].order1.uuid));
 
         emit SeraBatcher.MatchFailed(h0, h1, abi.encodeWithSelector(Sera.OrderFilledAmountExceeded.selector), 3);
-        uint256 failedMask = batcher.batchMatchMixed(atomics, singles);
+        uint256 failedMask = batcher.batchMatchMixed(atomics, singles, type(uint256).max);
 
         // Atomic 1 (index 0) passed
         // Atomic 2 (index 1) failed -> bit 1 should be set
@@ -212,7 +212,7 @@ contract SeraBatcherTest is TestHelper {
         MatchData[] memory singles = new MatchData[](0);
 
         vm.expectRevert(abi.encodeWithSelector(SeraBase.Unauthorized.selector, address(this), sera.EXECUTOR_ROLE()));
-        batcher.batchMatchMixed(atomics, singles);
+        batcher.batchMatchMixed(atomics, singles, type(uint256).max);
     }
 
     // ======== Failure Tests (Wrong Matches) ========
@@ -225,7 +225,7 @@ contract SeraBatcherTest is TestHelper {
         matches[0].signature1 = bytes("invalid");
 
         vm.prank(executor);
-        uint256 failedMask = batcher.batchMatchOrders(matches);
+        uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
 
         assertEq(failedMask, 1, "Match failure should be caught");
     }
@@ -238,7 +238,7 @@ contract SeraBatcherTest is TestHelper {
         matches[0].order1.fromToken = address(0xdead);
 
         vm.prank(executor);
-        uint256 failedMask = batcher.batchMatchOrders(matches);
+        uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
 
         assertEq(failedMask, 1, "Token mismatch should be caught");
     }
@@ -251,7 +251,7 @@ contract SeraBatcherTest is TestHelper {
         matches[0].matchAmount0 = 101 ether;
 
         vm.prank(executor);
-        uint256 failedMask = batcher.batchMatchOrders(matches);
+        uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
 
         assertEq(failedMask, 1, "Amount mismatch should be caught");
     }
@@ -265,7 +265,7 @@ contract SeraBatcherTest is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(); // Atomic should revert the whole tx
-        batcher.batchMatchOrdersAtomic(matches);
+        batcher.batchMatchOrdersAtomic(matches, type(uint256).max);
     }
 
     function _makePair(uint256 usdtAmt, uint256 sgdAmt, uint256 uuid0, uint256 uuid1) internal view returns (MatchData memory) {

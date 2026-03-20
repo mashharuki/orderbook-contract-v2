@@ -100,7 +100,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         assertEq(eth.balanceOf(taker), 10 ether);
         assertEq(usdc.balanceOf(maker1), 1000 ether);
@@ -133,7 +133,7 @@ contract SeraRouteTest is TestHelper {
 
         // Execute Route pulling EXACTLY 600 USDC from the external wallet.
         // The SOR calculates a 400 USDC shortfall to execute the 1000 USDC match, which it then delegates to the Sera.sol and Vault.sol ledgers to cover.
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // Verification balances
         assertEq(eth.balanceOf(taker), 10 ether, "Taker successfully bought 10 ETH");
@@ -163,7 +163,7 @@ contract SeraRouteTest is TestHelper {
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
 
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         assertEq(eth.balanceOf(taker), 10 ether);
         assertEq(usdc.balanceOf(maker1), 1000 ether);
@@ -190,7 +190,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         assertEq(btc.balanceOf(taker), 1 ether);
         assertEq(usdc.balanceOf(maker1), 1000 ether);
@@ -213,7 +213,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         assertEq(eth.balanceOf(taker), 4.5 ether);
         assertEq(usdc.balanceOf(maker1), 450 ether);
@@ -289,7 +289,7 @@ contract SeraRouteTest is TestHelper {
 
         // Let's set the router in motion
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // Verification
         // Taker inputs: 2000 USDC + 3000 USDC
@@ -352,7 +352,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         assertEq(eth.balanceOf(taker), 10 ether);
         assertEq(usdc.balanceOf(maker1), 100 ether);
@@ -401,7 +401,7 @@ contract SeraRouteTest is TestHelper {
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
         vm.expectRevert(Sera.OrderExpired.selector);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // All legs reverted — no state changed
         assertEq(sera.vault().balanceOf(address(usdc), taker), 1000 ether, "Taker vault unchanged");
@@ -432,7 +432,7 @@ contract SeraRouteTest is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(Sera.InvalidSignature.selector);
-        sor.executeRoute(subset, routeSig);
+        sor.executeRoute(subset, routeSig, type(uint256).max);
     }
 
     /// @notice Maker order with non-zero routeHash is rejected
@@ -462,7 +462,7 @@ contract SeraRouteTest is TestHelper {
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InvalidRouteHash.selector);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
     }
 
     /// @notice Different taker users across legs is rejected
@@ -496,7 +496,7 @@ contract SeraRouteTest is TestHelper {
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InvalidRoute.selector);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
     }
 
     /// @notice Standard matchOrders rejects orders with routeHash != 0
@@ -523,7 +523,7 @@ contract SeraRouteTest is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(Sera.OrderRequiresRoute.selector);
-        sera.matchOrders(matchData);
+        sera.matchOrders(matchData, type(uint256).max);
     }
 
     /// @notice Routed execution fails if SeraSOR is not the trustedRouter in Sera
@@ -545,7 +545,7 @@ contract SeraRouteTest is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(Sera.RouterNotTrusted.selector);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
     }
 
     /// @notice Bad route signature reverts
@@ -564,7 +564,7 @@ contract SeraRouteTest is TestHelper {
         bytes memory routeSig = _signRoute(maker1PK, routeHash, sera);
         vm.prank(executor);
         vm.expectRevert(Sera.InvalidSignature.selector);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
     }
 
     // ============ Fund Source / Destination Matrix Tests ============
@@ -595,7 +595,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // Taker received ETH directly in wallet
         assertEq(eth.balanceOf(taker), 10 ether, "Taker should receive ETH in wallet");
@@ -630,7 +630,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // Taker received ETH inside vault ledger
         assertEq(eth.balanceOf(taker), 0, "Taker wallet ETH should be 0");
@@ -666,7 +666,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // Taker got ETH in wallet, USDC was pulled directly from wallet
         assertEq(eth.balanceOf(taker), 10 ether, "Taker should receive ETH in wallet");
@@ -703,7 +703,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // Taker got ETH credited to vault, USDC was pulled directly from wallet
         assertEq(eth.balanceOf(taker), 0, "Taker wallet ETH should be 0");
@@ -743,7 +743,7 @@ contract SeraRouteTest is TestHelper {
         bytes32 routeHash = _finalizeRouteBindings(matches);
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // ETH was sent to the third party, not the taker
         assertEq(eth.balanceOf(thirdParty), 10 ether, "Third party should receive ETH");

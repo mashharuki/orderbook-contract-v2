@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./Sera.sol";
 import "./SeraBase.sol";
+import {MatchExpired} from "./SeraLib.sol";
 /**
  * @title SeraSOR - Smart Order Router
  * @notice Orchestrates multi-leg atomic routes with:
@@ -48,7 +49,8 @@ contract SeraSOR is SeraBase {
      * @param routeSignature Single EIP-712 signature from the taker over the route hash
      */
 
-    function executeRoute(MatchData[] calldata matches, bytes calldata routeSignature) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
+    function executeRoute(MatchData[] calldata matches, bytes calldata routeSignature, uint256 deadline) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
+        if (block.timestamp > deadline) revert MatchExpired();
         if (matches.length == 0) revert EmptyRoute();
         if (matches.length > MAX_ROUTE_LEGS) revert TooManyLegs();
         // 1. Compute expected route hash from full taker order structs

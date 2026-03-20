@@ -141,7 +141,7 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
 
         // The route executes successfully and sweeps the unconsumed intermediate ETH to the protocol.
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         // 0.5 ETH is captured during leg 1 settlement and 0.5 ETH remains unconsumed after leg 2.
         assertEq(sera.vault().balanceOf(address(eth), owner), 1 ether, "Protocol should receive positive slippage");
@@ -182,7 +182,7 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
 
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         assertEq(dai.balanceOf(taker), 125 ether, "Taker receives final-leg positive slippage share in DAI");
         assertEq(sera.vault().balanceOf(address(eth), owner), 0.5 ether, "Protocol swept 0.5 ETH");
@@ -233,7 +233,7 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
 
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         assertEq(btc.balanceOf(taker), 0.11 ether, "Taker receives both branch outputs plus final-leg positive slippage");
         assertEq(sera.vault().balanceOf(address(eth), owner), 0.3 ether, "Protocol swept 0.3 ETH");
@@ -277,7 +277,7 @@ contract PoC_SOR_Positive_Slippage is TestHelper {
         bytes memory routeSig = _signRoute(takerPK, routeHash, sera);
 
         vm.prank(executor);
-        sor.executeRoute(matches, routeSig);
+        sor.executeRoute(matches, routeSig, type(uint256).max);
 
         assertEq(btc.balanceOf(taker), 0.055 ether, "Taker receives BTC output plus final-leg positive slippage");
         assertEq(dai.balanceOf(taker), 600 ether, "Taker receives DAI output plus final-leg positive slippage");

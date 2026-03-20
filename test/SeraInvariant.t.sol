@@ -90,7 +90,7 @@ contract SeraInvariantHandler is TestHelper {
         Order memory o2 = Order({user: user2, fromToken: address(SGD), toToken: address(USDT), fromAmount: amount, toAmount: amount, initialDepositAmount: 0, feeBps: 0, recipient: user2, expiration: uint48(block.timestamp + 1 days), uuid: nextUuid++, routeHash: bytes32(0)});
         MatchData memory data = MatchData({order0: o1, signature0: _signOrder(pk1, o1, orderBook), matchAmount0: amount, order1: o2, signature1: _signOrder(pk2, o2, orderBook), matchAmount1: amount});
         vm.prank(owner);
-        try orderBook.matchOrders(data) {
+        try orderBook.matchOrders(data, type(uint256).max) {
             ghost_matchCount++;
         } catch {}
     }
@@ -112,7 +112,7 @@ contract SeraInvariantHandler is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData({order0: o1, signature0: _signOrder(pk1, o1, orderBook), matchAmount0: amount, order1: o2, signature1: _signOrder(pk2, o2, orderBook), matchAmount1: amount});
         vm.prank(owner);
-        try batcher.batchMatchOrders(matches) returns (uint256 failedMask) {
+        try batcher.batchMatchOrders(matches, type(uint256).max) returns (uint256 failedMask) {
             if (failedMask == 0) ghost_matchCount++;
         } catch {}
     }
@@ -134,7 +134,7 @@ contract SeraInvariantHandler is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData({order0: o1, signature0: _signOrder(pk1, o1, orderBook), matchAmount0: amount, order1: o2, signature1: _signOrder(pk2, o2, orderBook), matchAmount1: amount});
         vm.prank(owner);
-        try batcher.batchMatchOrdersAtomic(matches) {
+        try batcher.batchMatchOrdersAtomic(matches, type(uint256).max) {
             ghost_matchCount++;
         } catch {}
     }

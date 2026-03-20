@@ -98,7 +98,7 @@ contract SeraTest is TestHelper {
 
         MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1000 ether, order1: order2, signature1: sig2, matchAmount1: 100 ether});
 
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
 
         assertEq(USDT.balanceOf(user2), 1000 ether);
         assertEq(SGD.balanceOf(user1), 100 ether);
@@ -119,7 +119,7 @@ contract SeraTest is TestHelper {
 
         MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 500 ether, order1: order2, signature1: sig2, matchAmount1: 50 ether});
 
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
 
         assertEq(USDT.balanceOf(user2), 500 ether);
         assertEq(SGD.balanceOf(user1), 50 ether);
@@ -146,7 +146,7 @@ contract SeraTest is TestHelper {
 
         MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 500 ether, order1: order2, signature1: sig2, matchAmount1: 50 ether});
 
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
 
         // User1 receives 50 SGD - 10% = 45 SGD
         // User2 receives 500 USDT - 10% = 450 USDT
@@ -183,7 +183,7 @@ contract SeraTest is TestHelper {
             matchAmount1: 100 ether // full match
         });
 
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
 
         // Maker receives 100 SGD exactly (no fee deduction)
         assertEq(SGD.balanceOf(maker), 100 ether);
@@ -215,7 +215,7 @@ contract SeraTest is TestHelper {
         MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1000 ether, order1: order2, signature1: sig2, matchAmount1: 100 ether});
 
         vm.expectRevert(abi.encodeWithSelector(IVault.BlacklistedUser.selector, user1));
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
     }
 
     function test_matchOrders_OverFill_Reverts() public {
@@ -234,7 +234,7 @@ contract SeraTest is TestHelper {
         MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1001 ether, order1: order2, signature1: sig2, matchAmount1: 100.1 ether});
 
         vm.expectRevert(Sera.OrderFilledAmountExceeded.selector);
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
     }
 
     function test_matchOrders_RoundingExploit_Reverts() public {
@@ -263,7 +263,7 @@ contract SeraTest is TestHelper {
         });
 
         vm.expectRevert(InvalidCostAmount.selector);
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
     }
 
     function test_matchOrders_DustRounding_Precision() public {
@@ -293,7 +293,7 @@ contract SeraTest is TestHelper {
 
         // The system explicitly blocks matches where the calculated cost violates the exchange rate.
         vm.expectRevert(InvalidCostAmount.selector);
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
     }
 
     function test_batchMatchOrders() public {
@@ -307,7 +307,7 @@ contract SeraTest is TestHelper {
         matches[0] = _makeFullPair(user1, user1PK, user2, user2PK, 1, 2);
         matches[1] = _makeFullPair(user1, user1PK, user2, user2PK, 3, 4);
 
-        uint256 failedMask = batcher.batchMatchOrders(matches);
+        uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
         assertEq(failedMask, 0);
 
         assertEq(USDT.balanceOf(user2), 2000 ether);
@@ -461,7 +461,7 @@ contract SeraTest is TestHelper {
 
         // Try to match, should fail
         vm.expectRevert(abi.encodeWithSelector(IVault.BlacklistedUser.selector, user1));
-        orderBook.matchOrders(data);
+        orderBook.matchOrders(data, type(uint256).max);
     }
 
     function test_batchMatchOrders_EmitsHashOnFailure() public {
@@ -491,7 +491,7 @@ contract SeraTest is TestHelper {
         vm.expectEmit(true, true, false, true, address(batcher));
         emit MatchFailed(h0, h1, abi.encodeWithSelector(Sera.OrderExpired.selector), 0);
 
-        batcher.batchMatchOrders(batch);
+        batcher.batchMatchOrders(batch, type(uint256).max);
     }
 
     function test_calculateSettlement_ExactMath() public {
@@ -669,7 +669,7 @@ contract SeraTest is TestHelper {
         MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1000 ether, order1: order2, signature1: sig2, matchAmount1: 100 ether});
 
         vm.expectRevert(Sera.TokenMismatch.selector);
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
     }
 
     function test_matchOrders_PriceExecution_Reverts() public {
@@ -698,7 +698,7 @@ contract SeraTest is TestHelper {
 
         // The exact match execution validates the physical price constraints
         vm.expectRevert(InvalidCostAmount.selector);
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
     }
 
     function test_fokBatch_RevertsOnAnyFailure() public {
@@ -726,7 +726,7 @@ contract SeraTest is TestHelper {
         matches[1] = MatchData(o3, s3, 500 ether, o4, s4, 50 ether);
 
         vm.expectRevert();
-        batcher.batchMatchOrdersAtomic(matches);
+        batcher.batchMatchOrdersAtomic(matches, type(uint256).max);
 
         // Atomicity check: first valid pair should also be reverted
         assertEq(USDT.balanceOf(user2), 0);

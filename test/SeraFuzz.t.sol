@@ -76,7 +76,7 @@ contract SeraFuzzTest is TestHelper {
 
         MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: fillAmount, order1: order2, signature1: sig2, matchAmount1: fillAmount});
 
-        orderBook.matchOrders(matchData);
+        orderBook.matchOrders(matchData, type(uint256).max);
 
         // Invariants
         // 1:1 match -> User1 gets `fillAmount` SGD
@@ -111,9 +111,9 @@ contract SeraFuzzTest is TestHelper {
         if (orderAmount < minAmount) {
             // Because one of the orders is below min amount
             vm.expectRevert(abi.encodeWithSelector(Sera.AmountBelowMinimum.selector, orderAmount, minAmount));
-            orderBook.matchOrders(matchData);
+            orderBook.matchOrders(matchData, type(uint256).max);
         } else {
-            orderBook.matchOrders(matchData);
+            orderBook.matchOrders(matchData, type(uint256).max);
         }
     }
 
@@ -140,7 +140,7 @@ contract SeraFuzzTest is TestHelper {
         matches[1] = MatchData(a2, _signOrder(u1pk, a2, orderBook), amount, b2, _signOrder(u2pk, b2, orderBook), amount);
 
         vm.prank(executor);
-        uint256 failedMask = batcher.batchMatchOrders(matches);
+        uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
 
         if (makeSecondExpired) assertEq(failedMask, 2);
         else assertEq(failedMask, 0);
@@ -168,6 +168,6 @@ contract SeraFuzzTest is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(abi.encodeWithSelector(Sera.OrderExpired.selector));
-        batcher.batchMatchOrdersAtomic(matches);
+        batcher.batchMatchOrdersAtomic(matches, type(uint256).max);
     }
 }
