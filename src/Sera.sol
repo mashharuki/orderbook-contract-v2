@@ -50,6 +50,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     error OrderExpirationTooLong();
     error InvalidFee();
     error SameTokenMatch();
+    error SelfMatch();
 
     string public constant NAME = "Sera";
     string public constant VERSION = "1";
@@ -218,6 +219,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         if (block.timestamp > deadline) revert MatchExpired();
         bytes32 orderHash0 = SeraLib.getOrderHashCalldata(_match.order0);
         bytes32 orderHash1 = SeraLib.getOrderHashCalldata(_match.order1);
+        if (orderHash0 == orderHash1) revert SelfMatch();
         // Make sure the orders are valid, hash check is performed in this function
         // These functions are not called in the most gas optimised sequence as the transaction is simulated before submission so there is no loss in gas optimisation unless transaction fails
         _validateMakerOrder(_match.order0, orderHash0, _match.signature0, _match.matchAmount0);
