@@ -40,8 +40,8 @@ contract DeploySeraTestnet is Script {
         console.log("Sera proxy deployed at:", address(sera));
 
         // 3b. Deploy non-upgradeable execution wrappers
-        SeraBatcher batcher = new SeraBatcher(address(sera));
         SeraSOR sor = new SeraSOR(address(sera));
+        SeraBatcher batcher = new SeraBatcher(address(sera), address(sor));
         console.log("SeraBatcher deployed at:", address(batcher));
         console.log("SeraSOR deployed at:", address(sor));
 

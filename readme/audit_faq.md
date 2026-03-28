@@ -23,18 +23,20 @@ Saves ~3,000+ gas per partial fill by avoiding redundant `ecrecover` calls and r
 
 ---
 
-## 2. No Fee-on-Transfer Token Support
+## 2. Unsupported Fee-on-Transfer Tokens Are Out of Scope
 
 **Location:** `Vault.sol` - `deposit()`
 
 ### Observed Pattern
-The `deposit()` function does not calculate the actual received amount which would break accounting for fee-on-transfer (FoT) tokens.
+The `deposit()` function credits the requested amount and does not measure post-transfer balance deltas.
 
-### Design Enforcement
-This is a **known limitation**. The protocol strictly enforces a **no-FoT policy** at the governance layer:
+### Why This Is Not Treated as a Protocol Issue
+Fee-on-transfer assets are outside the supported asset model. The protocol enforces a **no-FoT policy** at the governance layer:
 1. Only standard ERC20 tokens are whitelisted via `SeraAdmin.batchModifyWhitelistedTokens()`.
 2. Any token attempting to implement a tax or burn on transfer will be excluded from the whitelist.
 3. This significantly simplifies the core logic and saves gas for 99% of standard tokens (USDC, USDT, WETH, etc.) by avoiding double `balanceOf` checks.
+
+Within that supported asset universe, there is no accounting issue to fix. If governance were to intentionally whitelist a non-standard asset class anyway, that would be an explicit policy violation rather than an unexpected protocol bug.
 
 ---
 
@@ -47,7 +49,7 @@ The Smart Order Router (SOR) uses an in-memory array as a hash table with linear
 
 ### Why this is Secure
 This is a high-performance **Transient Storage Simulation**.
-1. **Load Factor Invariant:** The table size is always `(matches.length * 2) + 1`. This guarantees a load factor of <50%, ensuring the linear probe (`_findTokenSlot`) will always find an empty slot or the target token without an infinite loop.
+1. **Load Factor Invariant:** The table size is dynamically allocated based on an off-chain hint (`uniqueTokenCount`). It sets `tableSize = (uniqueTokenCount * 2) + 1`. This safely guarantees a load factor of <50%, ensuring the linear probe (`_findTokenSlot`) will always find an empty slot or the target token without an infinite loop.
 2. **Deterministic Hashing:** Using `uint256(uint160(token)) % tableSize` provides a stable index for addresses.
 3. **Collision Safety:** Linear probing correctly handles collisions in the rare event that two token addresses hash to the same index.
 
@@ -208,24 +210,24 @@ Blacklisting prevents an account from expanding its vault position with external
 
 ---
 
-## 12. SeraSOR `_computeRouteHash` Is Public
+## 12. SeraSOR `_computeSORHash` Is Public
 
-**Location:** `SeraSOR._computeRouteHash`
+**Location:** `SeraSOR._computeSORHash`
 
 ### Observed Pattern
 
-The internal routing logic function `_computeRouteHash` is marked as `public pure` instead of `internal pure`.
+The internal routing logic function `_computeSORHash` is marked as `internal pure`.
 
 ### Why This Is Safe
 
-Because the smart contract ecosystem is open-source, the route hashing logic is fully public regardless of the function visibility modifier. Marking a purely deterministic `view` or `pure` function as `public` does not expose any state or allow state manipulation. 
+Because the smart contract ecosystem is open-source, the SOR hashing logic is fully public regardless of the function visibility modifier. Marking a purely deterministic `pure` function as `internal` is a gas optimization rather than a security concern. 
 
-In a system operated by a centralized, permissioned executor (`EXECUTOR_ROLE`), pre-computation griefing (where an attacker pre-computes hashes off-chain to race the executor) is impossible, as the attacker cannot successfully call `executeRoute` anyway. The `public` visibility simply provides a convenient on-chain utility for verifying signatures during off-chain script development.
+In a system operated by a centralized, permissioned executor (`EXECUTOR_ROLE`), pre-computation griefing (where an attacker pre-computes hashes off-chain to race the executor) is impossible, as the attacker cannot successfully call `executeIntent` anyway.
 
 ---
 ---
 
-## 13. `depositFundWithPermit` Allows Gas-Sponsored Deposits but Exposes Permit Front-Running
+## 13. `depositFundWithPermit` Allows Sponsored Deposits and Approval Reuse by Design
 
 **Location:** `Sera.sol` - `depositFundWithPermit()`
 
@@ -234,6 +236,13 @@ To safely allow gas to be sponsored or paid by a relayer/executor, `depositFundW
 
 ### Why this is Secure
 The EIP-2612 `permit` signature itself cryptographically anchors the `_owner` address. Funds can **only** move from the signer's wallet directly into the vault balance associated with that same signer. There is no way for a third party to redirect the funds to themselves.
+
+The same logic applies when the vault already has sufficient allowance:
+- if an earlier permit left unused allowance on the vault, later calls can reuse that approval without a fresh signature
+- if the owner granted allowance directly, any caller can sponsor the deposit transaction
+- in all cases, the transfer still goes from `_owner` to the vault and the credit still lands on `_owner`
+
+This is standard ERC20 approval semantics, not an authorization bypass.
 
 ### The Front-Running Vector (Gas Griefing)
 The primary "risk" is that a front-running bot can observe the permit signature in the mempool and execute the transaction first. 
@@ -247,11 +256,11 @@ This is an **intentional design choice** to enable gasless user deposits (sponso
 
 ## 14. Audit Issue 3: SOR Positive Slippage Redistribution Depends on Where the Surplus Appears
 
-**Location:** `SeraSOR.executeRoute()` and `Sera._calculateSettlement()`
+**Location:** `SeraSOR.executeIntent()` and `Sera._calculateSettlement()`
 
 ### Observed Pattern
 
-The protocol now sweeps any leftover transient balances at the end of a SOR route into the treasury instead of reverting.
+The protocol now reverts with `TransientBalanceNotZero` if any transient balances remain at the end of a SOR route.
 
 At first glance, this can look inconsistent with the configured slippage split, because final-leg positive slippage is shared with the taker while leftover intermediate-leg surplus may end up fully credited to the protocol treasury.
 
@@ -269,22 +278,22 @@ The final leg behaves the same way as a normal trade. There is no downstream con
 If the next leg consumes the entire intermediate output, nothing remains stranded. No extra treasury sweep occurs beyond the normal protocol share already charged during settlement.
 
 #### Scenario D: Intermediate leg with leftover positive surplus
-If an intermediate leg produces more output than downstream signed legs are configured to consume, the excess remains in transient route state inside `Sera`. Later legs cannot auto-resize because the route is built from statically signed order amounts. At route end, any residual transient balance is swept to the treasury.
+If an intermediate leg produces more output than downstream signed legs are configured to consume, the excess remains in transient route state inside `Sera`. Later legs cannot auto-resize because the route is built from statically signed order amounts. At route end, any residual transient balance triggers a `TransientBalanceNotZero` revert, ensuring strict conservation of funds.
 
 ### Design Tradeoff
 
 This is an intentional pragmatic tradeoff:
 - it prevents valid routes from reverting on intermediate positive slippage
-- it prevents leftover tokens from remaining stuck in the contract
+- it prevents leftover tokens from remaining stuck in the contract (they trigger a revert)
 - it preserves the existing signed route model without a major refactor for dynamic downstream resizing
 
 In practice:
 - final-leg surplus is redistributed normally
-- stranded intermediate residuals are treasury-swept
+- stranded intermediate residuals cause a `TransientBalanceNotZero` revert
 
 ## 15. Audit Issue 4: Signed `initialDepositAmount` Prevents Executor-Controlled Funding Source Selection
 
-**Location:** `SeraLib.Order`, `SeraLib.ORDER_TYPEHASH`, `SeraLib.getOrderHashCalldata()`, and `SeraSOR.executeRoute()`
+**Location:** `SeraLib.Order`, `SeraLib.ORDER_TYPEHASH`, `SeraLib.getOrderHashCalldata()`, and `SeraSOR.executeIntent()`
 
 ### Observed Pattern
 
@@ -308,43 +317,3 @@ By moving `initialDepositAmount` into the signed `Order` payload and `ORDER_TYPE
 - no new trust assumptions are introduced
 - the user regains cryptographic control over route funding source selection
 - the fix is minimal because it reuses the existing EIP-712 order signing flow instead of introducing a second signed parameter path
-
----
-
-## 15. Pre-Audit Fix: `Vault.creditLedger` Zero-Address Guard
-
-**Location:** `Vault.sol` - `creditLedger()`
-
-### Resolved Before Audit
-`creditLedger()` previously lacked a `user != address(0)` check. While the function is only callable by `TRADER_ROLE` (the trusted `Sera.sol` engine), a defensive guard has been added as a belt-and-suspenders measure to prevent any future code path from accidentally crediting vault balance to the zero address and making it irrecoverable.
-
-```solidity
-if (user == address(0)) revert ZeroAddress();
-```
-
-This check is consistent with the existing zero-address guards already present on `withdraw()` and `transferLedger()`.
-
----
-
-## 16. Pre-Audit Fix: EIP-712 Canonical Encoding for `address[]` in `WithdrawIntent`
-
-**Location:** `Sera.sol` - `executeInstantWithdrawDualSig()`
-
-### Resolved Before Audit
-The EIP-712 specification mandates that each `address` element in an array field is encoded as a 32-byte left-zero-padded word. The previous implementation hashed `intent.tokens` using `abi.encodePacked(address[])`, which packs each address as 20 bytes.
-
-This produced a struct hash incompatible with the output of standard wallet implementations (MetaMask, Rabby) and SDK utilities (`signTypedData` in ethers.js and viem), which all follow the canonical 32-byte-per-element encoding rule.
-
-The fix introduces a private `_hashAddressArray()` helper:
-
-```solidity
-function _hashAddressArray(address[] calldata arr) private pure returns (bytes32) {
-    bytes32[] memory words = new bytes32[](arr.length);
-    for (uint256 i; i < arr.length; i++) {
-        words[i] = bytes32(uint256(uint160(arr[i])));
-    }
-    return keccak256(abi.encodePacked(words));
-}
-```
-
-Note: `uint256[]` amounts already used the correct encoding — `abi.encodePacked(uint256[])` produces 32-byte-per-element output since `uint256` is natively 32 bytes — and required no change.

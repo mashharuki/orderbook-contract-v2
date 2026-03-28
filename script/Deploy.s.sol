@@ -42,7 +42,7 @@ contract DeployScript is Script {
         console.log("Granted EXECUTOR_ROLE to SeraSOR and set it as trusted router");
 
         // Deploy Batcher wrapper and wire required roles
-        SeraBatcher batcher = new SeraBatcher(address(sera));
+        SeraBatcher batcher = new SeraBatcher(address(sera), address(sor));
         console.log("SeraBatcher deployed at:", address(batcher));
 
         sera.grantRole(sera.EXECUTOR_ROLE(), address(batcher));
