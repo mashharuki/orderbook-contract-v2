@@ -63,13 +63,13 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     }
 
     /// @notice Withdrawal delay (blocks) for user-initiated vault withdrawals. Set at 7200 for 24hrs
-    uint32 private constant WITHDRAW_DELAY_BLOCKS = 7200;
+    uint32 public constant WITHDRAW_DELAY_BLOCKS = 7200;
 
     /// @notice Maximum blocks a delayed withdrawal remains valid after the requestBlock (48hrs)
-    uint32 private constant WITHDRAW_EXPIRATION_BLOCKS = 14400;
+    uint32 public constant WITHDRAW_EXPIRATION_BLOCKS = 14400;
 
     /// @notice Maximum order expiration time (1 year)
-    uint256 private constant MAX_EXPIRATION = 365 days;
+    uint256 public constant MAX_EXPIRATION = 365 days;
 
     /// @notice Track filled amount for order hashes to support partial fills
     mapping(bytes32 => uint256) public filledAmount;
