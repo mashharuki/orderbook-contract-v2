@@ -22,6 +22,7 @@ contract Vault is IVault, ReentrancyGuardTransient, AccessControl {
     // Initialize with deployer as default admin.
 
     constructor(address initialAdmin) {
+        if (initialAdmin == address(0)) revert ZeroAddress();
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
     }
     // ============================================================
