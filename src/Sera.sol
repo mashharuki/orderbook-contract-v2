@@ -128,18 +128,18 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     function depositFundWithPermit(address _token, address _owner, uint256 _permitAmount, uint256 _depositAmount, uint256 _deadline, bytes calldata _sig) external whenNotPaused {
         if (!tokenConfigs[_token].isWhitelisted) revert TokenNotWhitelisted(_token);
         if (_depositAmount > _permitAmount) revert AmountMismatch();
-        // Check if allowance is already sufficient (e.g., if front-run or previously permitted)
         if (IERC20(_token).allowance(_owner, address(vault)) < _depositAmount) {
             if (_sig.length != 65 && _sig.length != 64) revert InvalidSignatureLength();
-            bytes32 r;
-            bytes32 s;
-            uint8 v;
-            assembly {
-                r := calldataload(_sig.offset)
-                s := calldataload(add(_sig.offset, 0x20))
-                v := byte(0, calldataload(add(_sig.offset, 0x40)))
+            bytes32 r; bytes32 s; uint8 v;
+            if (_sig.length == 65) {
+                assembly { r := calldataload(_sig.offset) s := calldataload(add(_sig.offset, 0x20)) v := byte(0, calldataload(add(_sig.offset, 0x40))) }
+                if (v < 27) v += 27;
+            } else {
+                bytes32 vs;
+                assembly { r := calldataload(_sig.offset) vs := calldataload(add(_sig.offset, 0x20)) }
+                s = vs & bytes32(0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+                v = uint8((uint256(vs) >> 255)) + 27;
             }
-            if (v < 27) v += 27;
             try IERC20Permit(_token).permit(_owner, address(vault), _permitAmount, _deadline, v, r, s) {} catch {}
         }
         vault.deposit(_owner, _token, _depositAmount);
