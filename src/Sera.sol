@@ -49,6 +49,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     error RouterNotTrusted();
     error OrderExpirationTooLong();
     error InvalidFee();
+    error SameTokenMatch();
 
     string public constant NAME = "Sera";
     string public constant VERSION = "1";
@@ -223,6 +224,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         _validateMakerOrder(_match.order1, orderHash1, _match.signature1, _match.matchAmount1);
         // Token symmetry
         if (_match.order0.fromToken != _match.order1.toToken || _match.order1.fromToken != _match.order0.toToken) revert TokenMismatch();
+        if (_match.order0.fromToken == _match.order0.toToken) revert SameTokenMatch();
         _executeMatch(_match, orderHash0, orderHash1);
     }
     /**
@@ -381,6 +383,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         _validateMakerOrder(_match.order1, makerHash, _match.signature1, _match.matchAmount1);
         // Token symmetry
         if (_match.order0.fromToken != _match.order1.toToken || _match.order1.fromToken != _match.order0.toToken) revert TokenMismatch();
+        if (_match.order0.fromToken == _match.order0.toToken) revert SameTokenMatch();
         takerReceives = _settleRoutedLegInternal(_match, takerHash, makerHash, takerVaultPull, holdTakerOutput);
     }
     /**
