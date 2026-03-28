@@ -31,6 +31,7 @@ Because the executor determines the exact ratios crossed via limit inputs, the s
 - **Price Bounds Check (`InvalidCostAmount`):** The engine mathematically asserts that the Taker is paying *at least* what the Maker's required exchange rate dictates, preventing relayers from intentionally granting worse execution prices.
 - **Strict Token Alignments (`TokenMismatch`):** The Engine verifies identically matching `fromToken` and `toToken` properties between Order 0 and Order 1.
 - **Implicit Rebate System:** When the two limits create a natural spread bonus, the engine partitions a configurable slippage share to the Protocol, the Maker, and the Taker. Critically, to protect physical vault solvency, the Protocol never *pushes* a bonus to a receiver. Instead, whoever *sent* the surplus token explicitly receives a discount applied seamlessly beneath their maximum spending limit.
+- **Pull-Only Settlement (SOR):** For routed legs, `_settleRoutedLegInternal` computes `neededFromTaker = makerReceives + protocolTake0` *before* vault interaction and only withdraws that net amount. The taker's spread share (`spreadToTaker0`) implicitly stays in the vault, eliminating redundant `safeTransfer` + `creditLedger` round-trips (~7k gas saved per vault-pulled leg).
 
 ## 6. Reentrancy Guarding
 ERC-777 callbacks and dangerous fallback loops are effectively sandboxed.
@@ -38,18 +39,28 @@ ERC-777 callbacks and dangerous fallback loops are effectively sandboxed.
 - Transient storage ensures that locks only last for the duration of the cross-contract execution, saving significant gas while isolating malicious token behavior.
 - Wrappers like `SeraSOR.sol` enter `Sera.settleRoutedLeg()` sequentially; each entry enters and exits transient locks cleanly.
 
-## 7. SOR Leftover Intermediate Surplus
+## 7. SOR Intermediate Settlement & Surplus Handling
 `SeraSOR` executes intermediate route legs using transient in-memory balances rather than immediate Vault deposits. This keeps routing gas-efficient, but it also means downstream legs consume statically signed amounts.
 
-If an intermediate leg produces more output than later signed legs are configured to consume, that extra balance cannot be dynamically forwarded on-chain. The protocol now handles this by sweeping any leftover transient balance remaining at route end into the protocol treasury.
+### Vault Pull Optimization (First Legs)
+For legs where the taker's input is pulled from vault (`takerVaultPull > 0`), settlement computes `transientPhysical = effectiveMatchAmount0 - takerVaultPull` before the vault withdrawal. If `neededFromTaker > transientPhysical`, only the deficit is withdrawn from the vault. If the transient physical tokens alone exceed the cost, the surplus is returned to the taker's vault via `safeTransfer` + `creditLedger`. The taker's spread share remains in vault implicitly.
 
-This avoids two previous failure modes:
-- valid routes reverting when intermediate positive slippage appears
-- physical tokens remaining stranded in `Sera`
+### Sentinel Surplus Safety Net (Intermediate Legs)
+For sentinel legs (`takerVaultPull == 0`), the input tokens are already physically in `Sera.sol` from the previous leg. Any non-zero surplus (`transientPhysical - neededFromTaker`) is returned to the taker's vault via `safeTransfer` + `creditLedger`. In production, the executor calibrates `matchAmount1` values to produce zero intermediate spread, so this safety net block is typically dead code.
+
+### Transient Balance Enforcement
+If an intermediate leg produces more output than later signed legs are configured to consume, any leftover transient balance remaining at route end triggers a `TransientBalanceNotZero` revert, ensuring strict conservation of funds across the entire route.
 
 Important distinction:
 - final-leg positive slippage still follows the configured `SlippageShare` split and reaches the taker recipient or Vault balance normally
-- only route-end residual intermediate balances are treasury-swept
+- intermediate surplus is either zero (executor-calibrated) or returned to taker vault (safety net)
+
+### Intent Hardening: Signed Recipient & Deposit Amount
+The SOR intent (`INTENT_TYPEHASH`) cryptographically commits to two critical fields:
+1. **`recipient`** — The address where the taker's output is delivered. Every terminal leg in the route must have its `order0.recipient` match the signed `intent.recipient`. This prevents an executor from redirecting output to an arbitrary address (output hijacking).
+2. **`initialDepositAmount`** — The exact amount to pull from the taker's wallet. The contract verifies `matches[0].order0.initialDepositAmount == intent.initialDepositAmount` and uses this as the wallet pull amount. A value of `0` means vault-only settlement. This prevents an executor from pulling more tokens from the taker's wallet than authorized.
+
+Both fields are bundled into the `IntentParams` struct (see `SeraLib.sol`) and passed as a single calldata parameter to `executeIntent`, reducing stack depth and improving readability.
 
 ## 8. Vault `creditLedger` Caller Invariant
 `Vault.creditLedger()` no longer checks physical token surplus on-chain before crediting balances. Instead, it relies on a strict caller invariant:

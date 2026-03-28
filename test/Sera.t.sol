@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "../src/mock/MockStableCoin.sol";
 import "../src/Sera.sol";
 import "../src/SeraBatcher.sol";
+import "../src/SeraSOR.sol";
 import "../src/interface/IVault.sol";
 import "../src/SeraAdmin.sol";
 import {InvalidCostAmount} from "../src/SeraLib.sol";
@@ -19,8 +20,14 @@ import "./TestHelper.sol";
 contract SeraHarness is Sera {
     constructor(address initialOwner, Vault _vault) Sera(initialOwner, _vault) {}
 
-    function expose_calculateSettlement(MatchData calldata _match, uint256 executionValue0, uint256 executionValue1, bytes32 orderHash0, bytes32 orderHash1) external returns (SettlementCalc memory) {
-        return _calculateSettlement(_match, executionValue0, executionValue1, orderHash0, orderHash1);
+    function expose_calculateSettlement(
+        MatchData calldata _match,
+        uint256 executionValue0,
+        uint256 executionValue1,
+        bytes32 orderHash0,
+        bytes32 orderHash1
+    ) external returns (Sera.SettlementCalc memory) {
+        return _calculateSettlement(_match, executionValue0, executionValue1, _match.matchAmount0, _match.matchAmount1, orderHash0, orderHash1);
     }
 }
 
@@ -32,6 +39,7 @@ contract SeraTest is TestHelper {
     MockStableCoin USDT;
     MockStableCoin SGD;
     Sera orderBook;
+    SeraSOR sor_;
     SeraBatcher batcher;
 
     address owner;
@@ -56,7 +64,8 @@ contract SeraTest is TestHelper {
         orderBook.grantRole(orderBook.EXECUTOR_ROLE(), address(this));
 
         // Deploy execution wrappers
-        batcher = new SeraBatcher(address(orderBook));
+        sor_ = new SeraSOR(address(orderBook));
+        batcher = new SeraBatcher(address(orderBook), address(sor_));
 
         // Allow wrappers to call Sera.matchOrders()
         orderBook.grantRole(orderBook.EXECUTOR_ROLE(), address(batcher));
@@ -67,16 +76,41 @@ contract SeraTest is TestHelper {
     // HELPERS
     // ============================================================================
 
-    function _hashTypedData(string memory name, string memory version, address verifyingContract, bytes32 structHash) internal view returns (bytes32) {
-        bytes32 TYPE_HASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    function _hashTypedData(string memory name, string memory version, address verifyingContract, bytes32 structHash)
+        internal
+        view
+        returns (bytes32)
+    {
+        bytes32 TYPE_HASH =
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
-        bytes32 domainSeparator = keccak256(abi.encode(TYPE_HASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, verifyingContract));
+        bytes32 domainSeparator = keccak256(
+            abi.encode(TYPE_HASH, keccak256(bytes(name)), keccak256(bytes(version)), block.chainid, verifyingContract)
+        );
 
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
     }
 
-    function _createMakerOrder(address user, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, uint256 salt) internal view returns (Order memory) {
-        return Order({user: user, fromToken: fromToken, toToken: toToken, fromAmount: fromAmount, toAmount: toAmount, initialDepositAmount: 0, feeBps: 0, recipient: user, expiration: uint48(block.timestamp + 1 days), uuid: salt, routeHash: bytes32(0)});
+    function _createMakerOrder(
+        address user,
+        address fromToken,
+        address toToken,
+        uint256 fromAmount,
+        uint256 toAmount,
+        uint256 salt
+    ) internal view returns (Order memory) {
+        return Order({
+            user: user,
+            fromToken: fromToken,
+            toToken: toToken,
+            fromAmount: fromAmount,
+            toAmount: toAmount,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: user,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: salt
+        });
     }
 
     // ============================================================================
@@ -96,7 +130,14 @@ contract SeraTest is TestHelper {
         Order memory order2 = _createMakerOrder(user2, address(SGD), address(USDT), 100 ether, 1000 ether, 2);
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1000 ether, order1: order2, signature1: sig2, matchAmount1: 100 ether});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: 1000 ether,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: 100 ether
+        });
 
         orderBook.matchOrders(matchData, type(uint256).max);
 
@@ -117,7 +158,14 @@ contract SeraTest is TestHelper {
         Order memory order2 = _createMakerOrder(user2, address(SGD), address(USDT), 50 ether, 500 ether, 2);
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 500 ether, order1: order2, signature1: sig2, matchAmount1: 50 ether});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: 500 ether,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: 50 ether
+        });
 
         orderBook.matchOrders(matchData, type(uint256).max);
 
@@ -125,7 +173,21 @@ contract SeraTest is TestHelper {
         assertEq(SGD.balanceOf(user1), 50 ether);
 
         // Verify state
-        bytes32 hash1 = keccak256(abi.encode(ORDER_TYPEHASH, order1.user, order1.expiration, order1.feeBps, order1.recipient, order1.fromToken, order1.toToken, order1.fromAmount, order1.toAmount, order1.initialDepositAmount, order1.routeHash, order1.uuid));
+        bytes32 hash1 = keccak256(
+            abi.encode(
+                ORDER_TYPEHASH,
+                order1.user,
+                order1.expiration,
+                order1.feeBps,
+                order1.recipient,
+                order1.fromToken,
+                order1.toToken,
+                order1.fromAmount,
+                order1.toAmount,
+                order1.initialDepositAmount,
+                order1.uuid
+            )
+        );
         assertEq(orderBook.filledAmount(hash1), 500 ether);
     }
 
@@ -144,7 +206,14 @@ contract SeraTest is TestHelper {
         order2.feeBps = 1000; // 10%
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 500 ether, order1: order2, signature1: sig2, matchAmount1: 50 ether});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: 500 ether,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: 50 ether
+        });
 
         orderBook.matchOrders(matchData, type(uint256).max);
 
@@ -212,7 +281,14 @@ contract SeraTest is TestHelper {
         Order memory order2 = _createMakerOrder(user2, address(SGD), address(USDT), 100 ether, 1000 ether, 2);
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1000 ether, order1: order2, signature1: sig2, matchAmount1: 100 ether});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: 1000 ether,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: 100 ether
+        });
 
         vm.expectRevert(abi.encodeWithSelector(IVault.BlacklistedUser.selector, user1));
         orderBook.matchOrders(matchData, type(uint256).max);
@@ -231,7 +307,14 @@ contract SeraTest is TestHelper {
         Order memory order2 = _createMakerOrder(user2, address(SGD), address(USDT), 2000 ether, 20000 ether, 2);
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1001 ether, order1: order2, signature1: sig2, matchAmount1: 100.1 ether});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: 1001 ether,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: 100.1 ether
+        });
 
         vm.expectRevert(Sera.OrderFilledAmountExceeded.selector);
         orderBook.matchOrders(matchData, type(uint256).max);
@@ -314,10 +397,16 @@ contract SeraTest is TestHelper {
         assertEq(SGD.balanceOf(user1), 200 ether);
     }
 
-    function _makeFullPair(address user1, uint256 user1PK, address user2, uint256 user2PK, uint256 uuid1, uint256 uuid2) internal view returns (MatchData memory) {
+    function _makeFullPair(address user1, uint256 user1PK, address user2, uint256 user2PK, uint256 uuid1, uint256 uuid2)
+        internal
+        view
+        returns (MatchData memory)
+    {
         Order memory o1 = _createMakerOrder(user1, address(USDT), address(SGD), 1000 ether, 100 ether, uuid1);
         Order memory o2 = _createMakerOrder(user2, address(SGD), address(USDT), 100 ether, 1000 ether, uuid2);
-        return MatchData(o1, _signOrder(user1PK, o1, orderBook), 1000 ether, o2, _signOrder(user2PK, o2, orderBook), 100 ether);
+        return MatchData(
+            o1, _signOrder(user1PK, o1, orderBook), 1000 ether, o2, _signOrder(user2PK, o2, orderBook), 100 ether
+        );
     }
 
     function test_withdrawRequestFlow() public {
@@ -348,13 +437,32 @@ contract SeraTest is TestHelper {
         amounts[0] = 50 ether;
         amounts[1] = 50 ether;
 
-        WithdrawIntent memory intent = WithdrawIntent({user: user, tokens: tokens, amounts: amounts, recipient: user, deadline: block.timestamp + 1 hours, uuid: 123});
+        WithdrawIntent memory intent = WithdrawIntent({
+            user: user,
+            tokens: tokens,
+            amounts: amounts,
+            recipient: user,
+            deadline: block.timestamp + 1 hours,
+            uuid: 123
+        });
 
         bytes32[] memory tokenWords = new bytes32[](intent.tokens.length);
         for (uint256 i; i < intent.tokens.length; i++) {
             tokenWords[i] = bytes32(uint256(uint160(intent.tokens[i])));
         }
-        bytes32 structHash = keccak256(abi.encode(keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"), intent.user, keccak256(abi.encodePacked(tokenWords)), keccak256(abi.encodePacked(intent.amounts)), intent.recipient, intent.deadline, intent.uuid));
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256(
+                    "WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"
+                ),
+                intent.user,
+                keccak256(abi.encodePacked(tokenWords)),
+                keccak256(abi.encodePacked(intent.amounts)),
+                intent.recipient,
+                intent.deadline,
+                intent.uuid
+            )
+        );
         bytes32 digest = _hashTypedData("Sera", "1", address(orderBook), structHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPK, digest);
         bytes memory userSig = abi.encodePacked(r, s, v);
@@ -452,7 +560,14 @@ contract SeraTest is TestHelper {
         Order memory order2 = _createMakerOrder(user2, address(SGD), address(USDT), 100 ether, 1000 ether, 2);
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
-        MatchData memory data = MatchData({order0: order1, signature0: sig1, matchAmount0: 1000 ether, order1: order2, signature1: sig2, matchAmount1: 100 ether});
+        MatchData memory data = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: 1000 ether,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: 100 ether
+        });
 
         // Freeze maker using new API
         Vault v1 = orderBook.vault();
@@ -480,13 +595,48 @@ contract SeraTest is TestHelper {
         Order memory order2 = _createMakerOrder(user2, address(SGD), address(USDT), 100 ether, 1000 ether, 2);
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1000 ether, order1: order2, signature1: sig2, matchAmount1: 100 ether});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: 1000 ether,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: 100 ether
+        });
 
         MatchData[] memory batch = new MatchData[](1);
         batch[0] = matchData;
 
-        bytes32 h0 = keccak256(abi.encode(ORDER_TYPEHASH, order1.user, order1.expiration, order1.feeBps, order1.recipient, order1.fromToken, order1.toToken, order1.fromAmount, order1.toAmount, order1.initialDepositAmount, order1.routeHash, order1.uuid));
-        bytes32 h1 = keccak256(abi.encode(ORDER_TYPEHASH, order2.user, order2.expiration, order2.feeBps, order2.recipient, order2.fromToken, order2.toToken, order2.fromAmount, order2.toAmount, order2.initialDepositAmount, order2.routeHash, order2.uuid));
+        bytes32 h0 = keccak256(
+            abi.encode(
+                ORDER_TYPEHASH,
+                order1.user,
+                order1.expiration,
+                order1.feeBps,
+                order1.recipient,
+                order1.fromToken,
+                order1.toToken,
+                order1.fromAmount,
+                order1.toAmount,
+                order1.initialDepositAmount,
+                order1.uuid
+            )
+        );
+        bytes32 h1 = keccak256(
+            abi.encode(
+                ORDER_TYPEHASH,
+                order2.user,
+                order2.expiration,
+                order2.feeBps,
+                order2.recipient,
+                order2.fromToken,
+                order2.toToken,
+                order2.fromAmount,
+                order2.toAmount,
+                order2.initialDepositAmount,
+                order2.uuid
+            )
+        );
 
         vm.expectEmit(true, true, false, true, address(batcher));
         emit MatchFailed(h0, h1, abi.encodeWithSelector(Sera.OrderExpired.selector), 0);
@@ -516,7 +666,14 @@ contract SeraTest is TestHelper {
         vm.prank(owner);
         harness.setSlippageShares(2500, 2500, 5000, 10000); // maker: 25%, taker: 25%, protocol: 50%, sum: 100%
         // There is a 5 SGD spread here! User 0 only expected 100 SGD.
-        MatchData memory matchData = MatchData({order0: o0, signature0: "", matchAmount0: 100 ether, order1: o1, signature1: "", matchAmount1: 105 ether});
+        MatchData memory matchData = MatchData({
+            order0: o0,
+            signature0: "",
+            matchAmount0: 100 ether,
+            order1: o1,
+            signature1: "",
+            matchAmount1: 105 ether
+        });
 
         // executionValue0 refers to how much SGD User 0 mathematically EXPECTS
         // executionValue1 refers to how much USDT User 1 mathematically EXPECTS
@@ -527,7 +684,8 @@ contract SeraTest is TestHelper {
         bytes32 hash1 = keccak256("hash1");
 
         // Execute Settlement calculation exactly as Sera would
-        Sera.SettlementCalc memory calc = harness.expose_calculateSettlement(matchData, execVal0, execVal1, hash0, hash1);
+        Sera.SettlementCalc memory calc =
+            harness.expose_calculateSettlement(matchData, execVal0, execVal1, hash0, hash1);
 
         // Assert 0: executionValue0 (Amount of Token 1 / SGD requested by User 1 / Taker)
         // Base request: 100 SGD.
@@ -599,7 +757,14 @@ contract SeraTest is TestHelper {
         harness.setSlippageShares(3000, 3000, 4000, 10000); // maker: 30%, taker: 30%, protocol: 40%
 
         // Notice the partial fill amounts: The engine executes exactly what the Taker requested.
-        MatchData memory matchData = MatchData({order0: o0, signature0: "", matchAmount0: 40 ether, order1: o1, signature1: "", matchAmount1: 82000 ether});
+        MatchData memory matchData = MatchData({
+            order0: o0,
+            signature0: "",
+            matchAmount0: 40 ether,
+            order1: o1,
+            signature1: "",
+            matchAmount1: 82000 ether
+        });
 
         // execVal0 represents Maker's base expected receipt (scaled for 40 ETH)
         // (40 / 50) * 80,000 = 64,000 USDC (SGD mock token here)
@@ -609,7 +774,8 @@ contract SeraTest is TestHelper {
         // (82000 / 82000) * 40 = 40 (USDT mock token here)
         uint256 execVal1 = 40 ether;
 
-        Sera.SettlementCalc memory calc = harness.expose_calculateSettlement(matchData, execVal0, execVal1, bytes32(0), bytes32(0));
+        Sera.SettlementCalc memory calc =
+            harness.expose_calculateSettlement(matchData, execVal0, execVal1, bytes32(0), bytes32(0));
 
         // Let's verify exactly the spread maths expected in Example B:
         // Surplus USDT (Token 0): 0 (Maker sent 40, Taker requested 40)
@@ -666,7 +832,14 @@ contract SeraTest is TestHelper {
         Order memory order2 = _createMakerOrder(user2, address(SGD), address(USDT), 100 ether, 1000 ether, 2);
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: 1000 ether, order1: order2, signature1: sig2, matchAmount1: 100 ether});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: 1000 ether,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: 100 ether
+        });
 
         vm.expectRevert(Sera.TokenMismatch.selector);
         orderBook.matchOrders(matchData, type(uint256).max);

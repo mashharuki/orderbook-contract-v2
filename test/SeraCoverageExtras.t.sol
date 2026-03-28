@@ -17,7 +17,7 @@ contract FakeSeraString {
         return false;
     }
 
-    function matchOrders(MatchData calldata) external pure {
+    function matchOrders(MatchData calldata, uint256) external pure {
         revert("oops");
     }
 
@@ -56,8 +56,8 @@ contract SeraCoverageExtrasTest is TestHelper {
         btc = new MockStableCoin("BTC");
 
         sera = _deploySera(owner);
-        batcher = new SeraBatcher(address(sera));
         sor = new SeraSOR(address(sera));
+        batcher = new SeraBatcher(address(sera), address(sor));
 
         vm.startPrank(owner);
         _whitelistToken(sera, address(usdt), true, 1);
@@ -108,15 +108,39 @@ contract SeraCoverageExtrasTest is TestHelper {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 10 ether;
 
-        WithdrawIntent memory intent = WithdrawIntent({user: user, tokens: tokens, amounts: amounts, recipient: address(0), deadline: block.timestamp + 1 hours, uuid: 999});
+        WithdrawIntent memory intent = WithdrawIntent({
+            user: user,
+            tokens: tokens,
+            amounts: amounts,
+            recipient: address(0),
+            deadline: block.timestamp + 1 hours,
+            uuid: 999
+        });
 
         bytes32[] memory tokenWords = new bytes32[](intent.tokens.length);
         for (uint256 i; i < intent.tokens.length; i++) {
             tokenWords[i] = bytes32(uint256(uint160(intent.tokens[i])));
         }
-        bytes32 structHash = keccak256(abi.encode(keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"), intent.user, keccak256(abi.encodePacked(tokenWords)), keccak256(abi.encodePacked(intent.amounts)), intent.recipient, intent.deadline, intent.uuid));
-        bytes32 typeHash = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-        bytes32 domainSeparator = keccak256(abi.encode(typeHash, keccak256(bytes(sera.NAME())), keccak256(bytes(sera.VERSION())), block.chainid, address(sera)));
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256(
+                    "WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"
+                ),
+                intent.user,
+                keccak256(abi.encodePacked(tokenWords)),
+                keccak256(abi.encodePacked(intent.amounts)),
+                intent.recipient,
+                intent.deadline,
+                intent.uuid
+            )
+        );
+        bytes32 typeHash =
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                typeHash, keccak256(bytes(sera.NAME())), keccak256(bytes(sera.VERSION())), block.chainid, address(sera)
+            )
+        );
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
 
         // User Sig
@@ -140,10 +164,39 @@ contract SeraCoverageExtrasTest is TestHelper {
         _mintAndDeposit(user1, address(usdt), 1000 ether, sera);
         _mintAndDeposit(user2, address(sgd), 100 ether, sera);
 
-        Order memory o0 = Order({user: user1, fromToken: address(usdt), toToken: address(sgd), fromAmount: 1000 ether, toAmount: 100 ether, initialDepositAmount: 0, feeBps: 0, recipient: user1, expiration: uint48(block.timestamp + 1 days), uuid: 10, routeHash: bytes32(0)});
-        Order memory o1 = Order({user: user2, fromToken: address(sgd), toToken: address(usdt), fromAmount: 100 ether, toAmount: 1000 ether, initialDepositAmount: 0, feeBps: 0, recipient: address(0), expiration: uint48(block.timestamp + 1 days), uuid: 11, routeHash: bytes32(0)});
+        Order memory o0 = Order({
+            user: user1,
+            fromToken: address(usdt),
+            toToken: address(sgd),
+            fromAmount: 1000 ether,
+            toAmount: 100 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: user1,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 10
+        });
+        Order memory o1 = Order({
+            user: user2,
+            fromToken: address(sgd),
+            toToken: address(usdt),
+            fromAmount: 100 ether,
+            toAmount: 1000 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: address(0),
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 11
+        });
 
-        MatchData memory m = MatchData({order0: o0, signature0: _signOrder(user1PK, o0, sera), matchAmount0: 1000 ether, order1: o1, signature1: _signOrder(user2PK, o1, sera), matchAmount1: 100 ether});
+        MatchData memory m = MatchData({
+            order0: o0,
+            signature0: _signOrder(user1PK, o0, sera),
+            matchAmount0: 1000 ether,
+            order1: o1,
+            signature1: _signOrder(user2PK, o1, sera),
+            matchAmount1: 100 ether
+        });
 
         uint256 beforeVaultCredit = sera.vault().balanceOf(address(usdt), user2);
         sera.matchOrders(m, type(uint256).max);
@@ -192,10 +245,39 @@ contract SeraCoverageExtrasTest is TestHelper {
 
     function test_coverage_batcher_error_string_catch() public {
         FakeSeraString fake = new FakeSeraString();
-        SeraBatcher fakeBatcher = new SeraBatcher(address(fake));
+        SeraBatcher fakeBatcher = new SeraBatcher(address(fake), address(sor));
 
         MatchData[] memory matches = new MatchData[](1);
-        matches[0] = MatchData({order0: Order({user: address(0), fromToken: address(0), toToken: address(0), fromAmount: 0, toAmount: 0, initialDepositAmount: 0, feeBps: 0, recipient: address(0), expiration: 0, uuid: 0, routeHash: bytes32(0)}), signature0: hex"", matchAmount0: 1, order1: Order({user: address(0), fromToken: address(0), toToken: address(0), fromAmount: 0, toAmount: 0, initialDepositAmount: 0, feeBps: 0, recipient: address(0), expiration: 0, uuid: 0, routeHash: bytes32(0)}), signature1: hex"", matchAmount1: 1});
+        matches[0] = MatchData({
+            order0: Order({
+                user: address(0),
+                fromToken: address(0),
+                toToken: address(0),
+                fromAmount: 0,
+                toAmount: 0,
+                initialDepositAmount: 0,
+                feeBps: 0,
+                recipient: address(0),
+                expiration: 0,
+                uuid: 0
+            }),
+            signature0: hex"",
+            matchAmount0: 1,
+            order1: Order({
+                user: address(0),
+                fromToken: address(0),
+                toToken: address(0),
+                fromAmount: 0,
+                toAmount: 0,
+                initialDepositAmount: 0,
+                feeBps: 0,
+                recipient: address(0),
+                expiration: 0,
+                uuid: 0
+            }),
+            signature1: hex"",
+            matchAmount1: 1
+        });
 
         uint256 failedMask = fakeBatcher.batchMatchOrders(matches, type(uint256).max);
         assertEq(failedMask, 1);
@@ -217,22 +299,64 @@ contract SeraCoverageExtrasTest is TestHelper {
         _mintAndDeposit(mk2, address(btc), 1 ether, sera);
 
         // Leg 1: taker sells USDT, gets colliding token (held transient in Sera)
-        Order memory takerLeg1 = Order({user: taker, fromToken: address(usdt), toToken: address(colliding), fromAmount: 1000 ether, toAmount: 50 ether, initialDepositAmount: 0, feeBps: 0, recipient: address(sera), expiration: uint48(block.timestamp + 1 days), uuid: 21, routeHash: bytes32(0)});
-        Order memory makerLeg1 = Order({user: maker, fromToken: address(colliding), toToken: address(usdt), fromAmount: 50 ether, toAmount: 1000 ether, initialDepositAmount: 0, feeBps: 0, recipient: maker, expiration: uint48(block.timestamp + 1 days), uuid: 22, routeHash: bytes32(0)});
+        Order memory takerLeg1 = Order({
+            user: taker,
+            fromToken: address(usdt),
+            toToken: address(colliding),
+            fromAmount: 1000 ether,
+            toAmount: 50 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: address(sera),
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 21
+        });
+        Order memory makerLeg1 = Order({
+            user: maker,
+            fromToken: address(colliding),
+            toToken: address(usdt),
+            fromAmount: 50 ether,
+            toAmount: 1000 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: maker,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 22
+        });
 
-        Order memory takerLeg2 = Order({user: taker, fromToken: address(colliding), toToken: address(btc), fromAmount: 50 ether, toAmount: 1 ether, initialDepositAmount: 0, feeBps: 0, recipient: taker, expiration: uint48(block.timestamp + 1 days), uuid: 23, routeHash: bytes32(0)});
-        Order memory makerLeg2 = Order({user: mk2, fromToken: address(btc), toToken: address(colliding), fromAmount: 1 ether, toAmount: 50 ether, initialDepositAmount: 0, feeBps: 0, recipient: mk2, expiration: uint48(block.timestamp + 1 days), uuid: 24, routeHash: bytes32(0)});
+        Order memory takerLeg2 = Order({
+            user: taker,
+            fromToken: address(colliding),
+            toToken: address(btc),
+            fromAmount: 50 ether,
+            toAmount: 1 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: taker,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 23
+        });
+        Order memory makerLeg2 = Order({
+            user: mk2,
+            fromToken: address(btc),
+            toToken: address(colliding),
+            fromAmount: 1 ether,
+            toAmount: 50 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: mk2,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 24
+        });
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(takerLeg1, "", 1000 ether, makerLeg1, _signOrder(makerPK, makerLeg1, sera), 50 ether);
         matches[1] = MatchData(takerLeg2, "", 50 ether, makerLeg2, _signOrder(mk2PK, makerLeg2, sera), 1 ether);
 
-        bytes32 routeHash = _routeHash(matches);
-        matches[0].order0.routeHash = routeHash;
-        matches[1].order0.routeHash = routeHash;
+        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeRoute(matches, _signRoute(takerPK, routeHash, sera), type(uint256).max);
+        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(btc.balanceOf(taker), 1 ether);
     }
@@ -240,19 +364,12 @@ contract SeraCoverageExtrasTest is TestHelper {
     function _findCollidingToken(uint256 modValue, uint256 tableSize) internal returns (MockStableCoin) {
         for (uint256 i = 0; i < 40; i++) {
             MockStableCoin t = new MockStableCoin(string(abi.encodePacked("C", vm.toString(i))));
-            if (uint256(uint160(address(t))) % tableSize == modValue && address(t) != address(sgd)) return t;
+            if (uint256(uint160(address(t))) % tableSize == modValue && address(t) != address(sgd)) {
+                return t;
+            }
         }
         revert("no-collision-token");
     }
 
-    function _routeHash(MatchData[] memory matches) internal pure returns (bytes32) {
-        bytes memory packed;
-        for (uint256 i = 0; i < matches.length; i++) {
-            Order memory o = matches[i].order0;
-            o.routeHash = bytes32(0);
-            bytes32 h = keccak256(abi.encode(ORDER_TYPEHASH, o.user, o.expiration, o.feeBps, o.recipient, o.fromToken, o.toToken, o.fromAmount, o.toAmount, o.initialDepositAmount, bytes32(0), o.uuid));
-            packed = bytes.concat(packed, abi.encodePacked(h));
-        }
-        return keccak256(packed);
-    }
+
 }

@@ -51,11 +51,11 @@ contract DeploySepolia is Script {
             console2.log("Granted PAUSER_ROLE to:", pauser);
         }
 
-        SeraBatcher batcher = new SeraBatcher(address(sera));
-        console2.log("SeraBatcher deployed at:", address(batcher));
-
         SeraSOR sor = new SeraSOR(address(sera));
         console2.log("SeraSOR deployed at:", address(sor));
+
+        SeraBatcher batcher = new SeraBatcher(address(sera), address(sor));
+        console2.log("SeraBatcher deployed at:", address(batcher));
 
         sera.grantRole(sera.EXECUTOR_ROLE(), address(batcher));
         sera.grantRole(sera.EXECUTOR_ROLE(), address(sor));

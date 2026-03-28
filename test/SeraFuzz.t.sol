@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../src/mock/MockStableCoin.sol";
 import "../src/Sera.sol";
 import "../src/SeraBatcher.sol";
+import "../src/SeraSOR.sol";
 
 import "./TestHelper.sol";
 
@@ -13,6 +14,7 @@ contract SeraFuzzTest is TestHelper {
     MockStableCoin USDT;
     MockStableCoin SGD;
     Sera orderBook;
+    SeraSOR sor_;
     SeraBatcher batcher;
     address owner;
     uint256 ownerPK;
@@ -26,7 +28,8 @@ contract SeraFuzzTest is TestHelper {
         SGD = new MockStableCoin("SGD");
 
         orderBook = _deploySera(owner);
-        batcher = new SeraBatcher(address(orderBook));
+        sor_ = new SeraSOR(address(orderBook));
+        batcher = new SeraBatcher(address(orderBook), address(sor_));
 
         vm.startPrank(owner);
         _whitelistToken(orderBook, address(USDT), true, 1);
@@ -65,8 +68,30 @@ contract SeraFuzzTest is TestHelper {
         _deposit(user1, address(USDT), orderAmount);
         _deposit(user2, address(SGD), orderAmount);
 
-        Order memory order1 = Order({user: user1, fromToken: address(USDT), toToken: address(SGD), fromAmount: orderAmount, toAmount: orderAmount, initialDepositAmount: 0, feeBps: 0, recipient: user1, expiration: uint48(block.timestamp + 1 days), uuid: 1, routeHash: bytes32(0)});
-        Order memory order2 = Order({user: user2, fromToken: address(SGD), toToken: address(USDT), fromAmount: orderAmount, toAmount: orderAmount, initialDepositAmount: 0, feeBps: 0, recipient: user2, expiration: uint48(block.timestamp + 1 days), uuid: 2, routeHash: bytes32(0)});
+        Order memory order1 = Order({
+            user: user1,
+            fromToken: address(USDT),
+            toToken: address(SGD),
+            fromAmount: orderAmount,
+            toAmount: orderAmount,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: user1,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 1
+        });
+        Order memory order2 = Order({
+            user: user2,
+            fromToken: address(SGD),
+            toToken: address(USDT),
+            fromAmount: orderAmount,
+            toAmount: orderAmount,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: user2,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 2
+        });
 
         bytes memory sig1 = _signOrder(user1PK, order1, orderBook);
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
@@ -74,7 +99,14 @@ contract SeraFuzzTest is TestHelper {
         uint256 fillAmount = (orderAmount * fillRatioBps) / 10000;
         if (fillAmount == 0) fillAmount = 1;
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: fillAmount, order1: order2, signature1: sig2, matchAmount1: fillAmount});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: fillAmount,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: fillAmount
+        });
 
         orderBook.matchOrders(matchData, type(uint256).max);
 
@@ -95,7 +127,18 @@ contract SeraFuzzTest is TestHelper {
         USDT.mint(maker, orderAmount);
         _deposit(maker, address(USDT), orderAmount);
 
-        Order memory order1 = Order({user: maker, fromToken: address(USDT), toToken: address(SGD), fromAmount: orderAmount, toAmount: orderAmount, initialDepositAmount: 0, feeBps: 0, recipient: maker, expiration: uint48(block.timestamp + 1 days), uuid: 1, routeHash: bytes32(0)});
+        Order memory order1 = Order({
+            user: maker,
+            fromToken: address(USDT),
+            toToken: address(SGD),
+            fromAmount: orderAmount,
+            toAmount: orderAmount,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: maker,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 1
+        });
         bytes memory sig1 = _signOrder(makerPK, order1, orderBook);
 
         // Perfect counterparty
@@ -103,10 +146,28 @@ contract SeraFuzzTest is TestHelper {
         SGD.mint(taker, orderAmount);
         _deposit(taker, address(SGD), orderAmount);
 
-        Order memory order2 = Order({user: taker, fromToken: address(SGD), toToken: address(USDT), fromAmount: orderAmount, toAmount: orderAmount, initialDepositAmount: 0, feeBps: 0, recipient: taker, expiration: uint48(block.timestamp + 1 days), uuid: 2, routeHash: bytes32(0)});
+        Order memory order2 = Order({
+            user: taker,
+            fromToken: address(SGD),
+            toToken: address(USDT),
+            fromAmount: orderAmount,
+            toAmount: orderAmount,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: taker,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 2
+        });
         bytes memory sig2 = _signOrder(takerPK, order2, orderBook);
 
-        MatchData memory matchData = MatchData({order0: order1, signature0: sig1, matchAmount0: orderAmount, order1: order2, signature1: sig2, matchAmount1: orderAmount});
+        MatchData memory matchData = MatchData({
+            order0: order1,
+            signature0: sig1,
+            matchAmount0: orderAmount,
+            order1: order2,
+            signature1: sig2,
+            matchAmount1: orderAmount
+        });
 
         if (orderAmount < minAmount) {
             // Because one of the orders is below min amount
@@ -128,11 +189,19 @@ contract SeraFuzzTest is TestHelper {
         _deposit(u1, address(USDT), amount * 2);
         _deposit(u2, address(SGD), amount * 2);
 
-        Order memory a1 = Order(u1, uint48(block.timestamp + 1 days), 0, u1, address(USDT), address(SGD), amount, amount, 0, bytes32(0), 11);
-        Order memory b1 = Order(u2, uint48(block.timestamp + 1 days), 0, u2, address(SGD), address(USDT), amount, amount, 0, bytes32(0), 12);
+        Order memory a1 = Order(
+            u1, uint48(block.timestamp + 1 days), 0, u1, address(USDT), address(SGD), amount, amount, 0, 11
+        );
+        Order memory b1 = Order(
+            u2, uint48(block.timestamp + 1 days), 0, u2, address(SGD), address(USDT), amount, amount, 0, 12
+        );
 
-        Order memory a2 = Order(u1, uint48(block.timestamp + 1 days), 0, u1, address(USDT), address(SGD), amount, amount, 0, bytes32(0), 21);
-        Order memory b2 = Order(u2, uint48(block.timestamp + 1 days), 0, u2, address(SGD), address(USDT), amount, amount, 0, bytes32(0), 22);
+        Order memory a2 = Order(
+            u1, uint48(block.timestamp + 1 days), 0, u1, address(USDT), address(SGD), amount, amount, 0, 21
+        );
+        Order memory b2 = Order(
+            u2, uint48(block.timestamp + 1 days), 0, u2, address(SGD), address(USDT), amount, amount, 0, 22
+        );
         if (makeSecondExpired) a2.expiration = uint48(block.timestamp - 1);
 
         MatchData[] memory matches = new MatchData[](2);
@@ -142,8 +211,11 @@ contract SeraFuzzTest is TestHelper {
         vm.prank(executor);
         uint256 failedMask = batcher.batchMatchOrders(matches, type(uint256).max);
 
-        if (makeSecondExpired) assertEq(failedMask, 2);
-        else assertEq(failedMask, 0);
+        if (makeSecondExpired) {
+            assertEq(failedMask, 2);
+        } else {
+            assertEq(failedMask, 0);
+        }
     }
 
     function testFuzz_FOKWrapper_Atomicity(uint256 amount) public {
@@ -157,10 +229,18 @@ contract SeraFuzzTest is TestHelper {
         _deposit(u1, address(USDT), amount * 2);
         _deposit(u2, address(SGD), amount * 2);
 
-        Order memory a1 = Order(u1, uint48(block.timestamp + 1 days), 0, u1, address(USDT), address(SGD), amount, amount, 0, bytes32(0), 31);
-        Order memory b1 = Order(u2, uint48(block.timestamp + 1 days), 0, u2, address(SGD), address(USDT), amount, amount, 0, bytes32(0), 32);
-        Order memory a2 = Order(u1, uint48(block.timestamp - 1), 0, u1, address(USDT), address(SGD), amount, amount, 0, bytes32(0), 33);
-        Order memory b2 = Order(u2, uint48(block.timestamp + 1 days), 0, u2, address(SGD), address(USDT), amount, amount, 0, bytes32(0), 34);
+        Order memory a1 = Order(
+            u1, uint48(block.timestamp + 1 days), 0, u1, address(USDT), address(SGD), amount, amount, 0, 31
+        );
+        Order memory b1 = Order(
+            u2, uint48(block.timestamp + 1 days), 0, u2, address(SGD), address(USDT), amount, amount, 0, 32
+        );
+        Order memory a2 = Order(
+            u1, uint48(block.timestamp - 1), 0, u1, address(USDT), address(SGD), amount, amount, 0, 33
+        );
+        Order memory b2 = Order(
+            u2, uint48(block.timestamp + 1 days), 0, u2, address(SGD), address(USDT), amount, amount, 0, 34
+        );
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(a1, _signOrder(u1pk, a1, orderBook), amount, b1, _signOrder(u2pk, b1, orderBook), amount);
