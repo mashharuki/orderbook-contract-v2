@@ -70,8 +70,8 @@ bytes32 constant INTENT_TYPEHASH = keccak256("Intent(address inputToken,address 
 // NOTE: Named 'WITHDRAW_INTENT_TYPEHASH' for legacy reasons — this refers to the SOR withdrawal type hash.
 bytes32 constant WITHDRAW_INTENT_TYPEHASH = keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)");
 
-// Basis points denominator (100% = 10000)
-uint256 constant BPS_DENOMINATOR = 10000;
+// Fee denominator (100% = 1e14). Largest power-of-10 fitting uint48.
+uint256 constant BPS_DENOMINATOR = 100_000_000_000_000;
 
 /**
  * @title SeraLib
