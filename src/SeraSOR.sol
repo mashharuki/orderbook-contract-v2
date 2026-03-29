@@ -11,13 +11,14 @@ import "./SeraBase.sol";
 import {MatchExpired, IntentParams} from "./SeraLib.sol";
 
 /**
- * @title SeraSOR - Smart Order Router (Intent-Based)
+ * @title SeraSOR - Smart Order Router
  * @notice Orchestrates multi-leg atomic routes with:
- *         - Intent-based signing: taker commits to (inputToken, outputToken, maxInput, minOutput)
+ *         - SOR-based signing: taker commits to (inputToken, outputToken, maxInput, minOutput)
  *         - Executor picks the optimal route at execution time (fixes TOCTOU)
  *         - Transient balance optimization (intermediate tokens skip vault)
- *         - Single EIP-712 signature for the intent (better UX)
- * @dev Extends SeraBase, delegates settlement to Sera.settleRoutedLeg().
+ *         - Single EIP-712 signature for the SOR order (better UX)
+ * @dev Named 'Intent-Based' in legacy references — all 'intent' identifiers refer to SOR.
+ *      Extends SeraBase, delegates settlement to Sera.settleRoutedLeg().
  *      No direct Vault access — all token operations go through Sera.
  */
 contract SeraSOR is SeraBase {
@@ -30,29 +31,30 @@ contract SeraSOR is SeraBase {
     error TransientBalanceNotZero(address token, uint256 amount);
     error InsufficientOutput();
     error ExcessiveInput();
-    error IntentAlreadyUsed();
+    error IntentAlreadyUsed(); // NOTE: Refers to SOR execution replay protection
 
     // ============ Events ============
-    event IntentMatched(bytes32 indexed intentHash, address indexed taker, uint256 legCount);
-    event IntentLegMatched(bytes32 indexed intentHash, uint256 indexed legIndex, bytes32 takerOrderHash, bytes32 makerOrderHash);
+    event IntentMatched(bytes32 indexed intentHash, address indexed taker, uint256 legCount); // NOTE: 'intent' refers to SOR execution
+    event IntentLegMatched(bytes32 indexed intentHash, uint256 indexed legIndex, bytes32 takerOrderHash, bytes32 makerOrderHash); // NOTE: 'intent' refers to SOR execution
 
     /// @notice Upper bound to protect against pathological gas usage
     uint256 public constant MAX_ROUTE_LEGS = 20;
 
-    /// @notice Tracks used intent UUIDs per user for replay protection
+    /// @notice Tracks used SOR UUIDs per user for replay protection
+    /// @dev Named 'isIntentUuidUsed' for legacy reasons — refers to SOR execution replay protection.
     mapping(address => mapping(uint256 => bool)) public isIntentUuidUsed;
 
     constructor(address _sera) SeraBase(_sera) {}
 
     /**
-     * @notice Execute a multi-leg atomic route based on a taker's signed intent.
-     * @dev The taker signs an intent covering (inputToken, outputToken, maxInput, minOutput,
-     *      recipient, initialDepositAmount, uuid, deadline) bundled as IntentParams.
+     * @notice Execute a multi-leg atomic route based on a taker's signed SOR order.
+     * @dev The taker signs an SOR order covering (inputToken, outputToken, maxInput, minOutput,
+     *      recipient, initialDepositAmount, uuid, deadline) bundled as IntentParams (SOR parameters).
      *      The executor constructs the route legs freely, selecting optimal intermediaries.
      *
      * @param matches Array of match data (order0 = taker leg, order1 = maker in each leg)
-     * @param intentSignature Single EIP-712 signature from the taker over the intent
-     * @param intent Signed intent parameters (see IntentParams struct in SeraLib.sol)
+     * @param intentSignature Single EIP-712 signature from the taker over the SOR order
+     * @param intent Signed SOR parameters (see IntentParams struct in SeraLib.sol)
      * @param uniqueTokenCount Hint for transient balance hash table sizing
      */
     function executeIntent(MatchData[] calldata matches, bytes calldata intentSignature, IntentParams calldata intent, uint8 uniqueTokenCount, uint256 permitDeadline, bytes calldata permitSignature) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
@@ -60,7 +62,7 @@ contract SeraSOR is SeraBase {
         if (matches.length == 0) revert EmptyRoute();
         if (matches.length > MAX_ROUTE_LEGS) revert TooManyLegs();
 
-        // 1. Compute intent hash and validate taker signature
+        // 1. Compute SOR hash and validate taker signature
         address takerUser = _validateAndConsumeIntent(intentSignature, intent);
 
         // 2. Transient balance tracking for intermediate tokens
@@ -88,7 +90,7 @@ contract SeraSOR is SeraBase {
         }
 
         // 3. Execute each leg
-        bytes32 intentHash = _computeIntentHash(intent);
+        bytes32 intentHash = _computeIntentHash(intent); // NOTE: 'intentHash' refers to SOR hash
         uint256 totalTakerOutput = 0;
 
         for (uint256 i = 0; i < matches.length;) {
@@ -155,14 +157,16 @@ contract SeraSOR is SeraBase {
     // ============ Internal Functions ============
 
     /**
-     * @notice Compute intent hash from intent parameters.
+     * @notice Compute SOR hash from SOR parameters.
+     * @dev Named '_computeIntentHash' for legacy reasons — refers to SOR hash computation.
      */
     function _computeIntentHash(IntentParams calldata p) internal pure returns (bytes32) {
         return keccak256(abi.encode(INTENT_TYPEHASH, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline));
     }
 
     /**
-     * @notice Validate intent signature, consume the intent (replay protection), and return the taker address.
+     * @notice Validate SOR signature, consume the SOR order (replay protection), and return the taker address.
+     * @dev Named '_validateAndConsumeIntent' for legacy reasons — refers to SOR validation.
      */
     function _validateAndConsumeIntent(bytes calldata signature, IntentParams calldata p) internal returns (address takerUser) {
         // Validate EIP-712 signature

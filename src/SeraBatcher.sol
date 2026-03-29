@@ -9,24 +9,27 @@ import {MatchExpired, IntentParams} from "./SeraLib.sol";
 /**
  * @title SeraBatcher - Unified Batch Order Matching
  * @notice Combines best-effort (continue-on-error) and FOK (all-or-nothing) batch matching
- *         for standard order pairs, plus try-catch SOR intent execution.
- * @dev SOR intents are always processed in continue-on-error mode because each intent is
- *      independently atomic — there is no dependency between separate intents.
+ *         for standard order pairs, plus try-catch SOR execution.
+ * @dev SOR executions are always processed in continue-on-error mode because each SOR order is
+ *      independently atomic — there is no dependency between separate SOR orders.
+ *      Named 'intents' in some identifiers for legacy reasons — all refer to SOR.
  */
 contract SeraBatcher is SeraBase {
     // ============ Custom Errors ============
     error TooManyOrders();
     error TooManyBatches();
-    error TooManyIntents();
+    error TooManyIntents(); // NOTE: Refers to SOR executions
     error InvalidSORAddress();
 
     /// @notice Maximum number of order pairs per batch
     uint256 public constant MAX_BATCH_SIZE = 20;
 
-    /// @notice Maximum number of SOR intents per batch
+    /// @notice Maximum number of SOR executions per batch
+    /// @dev Named 'MAX_INTENT_SIZE' for legacy reasons — refers to SOR executions.
     uint256 public constant MAX_INTENT_SIZE = 10;
 
-    /// @notice Reference to the SeraSOR contract for intent execution
+    /// @notice Reference to the SeraSOR contract for SOR execution
+    /// @dev Named 'sor' — this is the Smart Order Router.
     SeraSOR public immutable sor;
 
     // ============ Structs ============
@@ -34,7 +37,8 @@ contract SeraBatcher is SeraBase {
         MatchData[] matches;
     }
 
-    /// @notice Bundled parameters for a single SOR intent execution
+    /// @notice Bundled parameters for a single SOR execution
+    /// @dev Named 'IntentExecution' for legacy reasons — refers to SOR execution.
     struct IntentExecution {
         MatchData[] matches;
         bytes intentSignature;
@@ -49,7 +53,7 @@ contract SeraBatcher is SeraBase {
     event BatchExecuted(uint256 attempted, uint256 failedMask);
     event AtomicBatchExecuted(uint256 matchCount);
     event AtomicBatchFailed(uint256 batchIndex, bytes reason);
-    event IntentFailed(uint256 indexed intentIndex, bytes reason);
+    event IntentFailed(uint256 indexed intentIndex, bytes reason); // NOTE: 'Intent' refers to SOR execution
 
     /**
      * @notice Initialize with reference to Sera and SeraSOR contracts
@@ -112,8 +116,8 @@ contract SeraBatcher is SeraBase {
      *      SOR intents are always try-catch because each intent is independently atomic — no inter-intent dependencies.
      * @param _atomicBatches Array of AtomicBatch structs (all-or-nothing sub-batches)
      * @param _singleMatches Array of independent MatchData structs (continue-on-error)
-     * @param _intents Array of SOR intent executions (continue-on-error, max 10)
-     * @return failedMask Bitmask where bit `i` is 1 if that specific atomic batch, single match, or SOR intent failed, sequentially.
+     * @param _intents Array of SOR executions (continue-on-error, max 10). Named 'intents' for legacy reasons.
+     * @return failedMask Bitmask where bit `i` is 1 if that specific atomic batch, single match, or SOR execution failed, sequentially.
      */
     function batchMatchMixed(AtomicBatch[] calldata _atomicBatches, MatchData[] calldata _singleMatches, IntentExecution[] calldata _intents, uint256 deadline) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused returns (uint256 failedMask) {
         if (block.timestamp > deadline) revert MatchExpired();
@@ -152,7 +156,7 @@ contract SeraBatcher is SeraBase {
             }
         }
 
-        // 3. Process SOR Intents (always try-catch — each intent is independently atomic)
+        // 3. Process SOR Executions (always try-catch — each SOR order is independently atomic)
         uint256 intentOffset = _atomicBatches.length + _singleMatches.length;
         for (uint256 i = 0; i < _intents.length;) {
             IntentExecution calldata ie = _intents[i];

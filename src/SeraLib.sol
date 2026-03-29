@@ -35,7 +35,8 @@ struct MatchData {
 }
 
 /**
- * @notice Instant withdraw intent signed by user for executor-authorized withdrawal
+ * @notice Instant withdraw request signed by user for executor-authorized withdrawal
+ * @dev NOTE: Named 'WithdrawIntent' for legacy reasons — this refers to SOR withdrawal request.
  */
 struct WithdrawIntent {
     address user;
@@ -47,7 +48,8 @@ struct WithdrawIntent {
 }
 
 /**
- * @notice Bundled parameters for intent execution (resolves stack depth issues).
+ * @notice Bundled parameters for SOR execution (resolves stack depth issues).
+ * @dev NOTE: Named 'IntentParams' for legacy reasons — this refers to SOR parameters.
  */
 struct IntentParams {
     address inputToken;
@@ -62,8 +64,10 @@ struct IntentParams {
 
 bytes32 constant ORDER_TYPEHASH = keccak256("Order(address user,uint48 expiration,uint48 feeBps,address recipient,address fromToken,address toToken,uint256 fromAmount,uint256 toAmount,uint256 initialDepositAmount,uint256 uuid)");
 
+// NOTE: Named 'INTENT_TYPEHASH' for legacy reasons — this refers to the SOR parameters type hash.
 bytes32 constant INTENT_TYPEHASH = keccak256("Intent(address inputToken,address outputToken,uint256 maxInputAmount,uint256 minOutputAmount,address recipient,uint256 initialDepositAmount,uint256 uuid,uint48 deadline)");
 
+// NOTE: Named 'WITHDRAW_INTENT_TYPEHASH' for legacy reasons — this refers to the SOR withdrawal type hash.
 bytes32 constant WITHDRAW_INTENT_TYPEHASH = keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)");
 
 // Basis points denominator (100% = 10000)

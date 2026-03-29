@@ -33,7 +33,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     error AmountBelowMinimum(uint256 amount, uint256 minimum);
     error WithdrawNotReady();
     error AmountMismatch();
-    error IntentExpired();
+    error IntentExpired(); // NOTE: Refers to SOR request expiration
     error UuidAlreadyUsed();
     error LengthMismatch();
     error InvalidTokenCount();
@@ -73,8 +73,8 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
     /// @notice Track filled amount for order hashes to support partial fills
     mapping(bytes32 => uint256) public filledAmount;
-    /// @notice Intent replay protection using struct uuid nonce per user
-    /// @dev Cannot use hash to protect against uuid replay attacks
+    /// @notice SOR replay protection using struct uuid nonce per user
+    /// @dev Cannot use hash to protect against uuid replay attacks. Named 'isUuidExecuted' — refers to SOR withdrawal execution.
     mapping(address => mapping(uint256 => bool)) public isUuidExecuted;
 
     bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
@@ -415,8 +415,8 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         if (recovered == address(0) || recovered != _user) revert InvalidSignature();
     }
 
-    /// @notice Build EIP-712 digest for an Intent payload under Sera domain
-    /// @dev Used by SeraSOR for intent flexible routing
+    /// @notice Build EIP-712 digest for an SOR payload under Sera domain
+    /// @dev Used by SeraSOR for SOR flexible routing. Named 'getIntentDigest' for legacy reasons.
     function getIntentDigest(address inputToken, address outputToken, uint256 maxInputAmount, uint256 minOutputAmount, address recipient, uint256 initialDepositAmount, uint256 uuid, uint48 deadline) external view returns (bytes32) {
         bytes32 structHash = keccak256(abi.encode(INTENT_TYPEHASH, inputToken, outputToken, maxInputAmount, minOutputAmount, recipient, initialDepositAmount, uuid, deadline));
         return _hashTypedData(structHash);
