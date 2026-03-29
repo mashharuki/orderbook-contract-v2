@@ -94,7 +94,7 @@ The full 288-test count also includes passing suites that are not expanded secti
 | # | Test | Attack | Setup | Expected |
 |---|------|--------|-------|----------|
 | 1 | `test_Replay_FullyFilledTakerOrder_Reverts` | Replay fully-filled route | Execute once (1000 USDC→10 ETH). Re-deposit 1000 USDC, replay same sig. | Second execution reverts `OrderFilledAmountExceeded`. |
-| 2 | `test_NonExecutor_Reverts` | Unauthorized caller | Attacker (no role) calls `executeIntent`. | Reverts (Unauthorized). |
+| 2 | `test_NonExecutor_Reverts` | Unauthorized caller | Attacker (no role) calls `executeIntent` (SOR entry point). | Reverts (Unauthorized). |
 | 3 | `test_DirectSettleRoutedLeg_Reverts` | Bypass SOR | Attacker calls `sera.settleRoutedLeg` directly. | Reverts `RouterNotTrusted`. |
 | 4 | `test_TakerImpersonation_MixedUsers_Reverts` | Different user in leg 2 | Leg 1: real taker. Leg 2: attacker as taker. | Reverts `InvalidRoute`. |
 | 5 | `test_PausedContract_Reverts` | Execution while paused | `sera.pause()` then execute route. | Reverts `SeraPaused`. |
@@ -199,7 +199,7 @@ The full 288-test count also includes passing suites that are not expanded secti
 | 8 | `test_matchOrdersRouted_SplitMultileg_MakerExpiredReverts` | Expired maker mid-route → revert. |
 | 9 | `test_matchOrdersRouted_ComplexMultilegWithFees` | 3-leg with fees on all legs. |
 | 10 | `test_swapRouted_SingleLeg` | Swap variant of routed settlement. |
-| 11 | `test_executeIntent_RejectsReplay` | Same signed intent cannot be executed twice, even if the executor swaps in a new maker leg on replay. |
+| 11 | `test_executeIntent_RejectsReplay` | Same signed SOR order cannot be executed twice, even if the executor swaps in a new maker leg on replay. |
 | 12 | `test_executeRoute_VaultPull_VaultReturn` | Fund source: vault → vault. |
 | 13 | `test_executeRoute_VaultPull_WalletReturn` | Fund source: vault → wallet. |
 | 14 | `test_executeRoute_WalletPull_VaultReturn` | Fund source: wallet → vault. |
@@ -295,7 +295,7 @@ Tests validating all security findings, edge cases, and architectural observatio
 |---|------|-----------|-------------|
 | 1 | `test_Audit1_PartialFill_SkipsSignature` | M-1 | Executor can partially execute an order multiple times without re-verifying the signature. |
 | 2 | `test_Audit2_EmergencyWithdraw_PartialAmountAllowed` | M-3 | Users can emergency withdraw partial amounts iteratively over time without losing the request lock. |
-| 3 | `test_Audit3_CreditLedger_NoTransferVerification` | Trust Boundary | Vault ledger crediting intentionally relies on the authorized caller to transfer assets before crediting balances. |
+| 3 | `test_Audit3_CreditLedger_NoTransferVerification` | Trust Boundary | Vault ledger crediting deliberately relies on the authorized caller to transfer assets before crediting balances. |
 | 4 | `test_Audit5_NoCrossContractReplay` | Domain Separator | Orders are strictly bound to the specific `Sera.sol` instance using EIP-712 domain versioning. |
 | 5 | `test_Audit6_FullyFilledOrder_CannotBeRefilled` | Protocol Invariant | Ensures `matchAmount` limits execution and fully-filled orders systematically revert. |
 | 6 | `test_Audit7_SORUuid_PerUserIsolation` | Protocol Invariant | Uuid values are correctly scoped per-user. Mapped tracking does not contaminate across makers. |

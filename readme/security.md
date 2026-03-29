@@ -11,7 +11,7 @@ Sera delegates its actual token custody entirely to `Vault.sol`. The Vault is an
 ## 2. The Non-Custodial Guarantee
 In the event that the off-chain Web2 relayer ceases matching, or the platform frontend goes offline permanently, user funds are never permanently locked.
 - **Manual Delayed Withdrawals:** A user can query the contract directly (e.g., via Etherscan) and broadcast `emergencyWithdraw(token, amount)`. This stamps a request in `WithdrawRequest` associated with the current block.
-- After `WITHDRAW_DELAY_BLOCKS` (approx. 24 hours) have ticked, the user broadcasts the exact same payload. The funds are disbursed safely to the caller. High delays prevent the relayer engine from experiencing mid-flight race conditions against user intent logic.
+- After `WITHDRAW_DELAY_BLOCKS` (approx. 24 hours) have ticked, the user broadcasts the exact same payload. The funds are disbursed safely to the caller. High delays prevent the relayer engine from experiencing mid-flight race conditions against user withdrawal logic.
 
 ## 3. Blacklisting / Identity Freeze
 Compromised accounts (e.g., a hacked user wallet) can be frozen by the `DEFAULT_ADMIN_ROLE` using `Vault.setBlacklisted(user, true)`.
@@ -20,9 +20,9 @@ Compromised accounts (e.g., a hacked user wallet) can be frozen by the `DEFAULT_
 - **Safety First:** A blacklisted user *is strictly permitted* to execute Withdrawals. The protocol ensures no one can permanently deny a user access to withdrawing their underlying assets to their private key.
 
 ## 4. Ghost Liquidity & The 24h Sync Window
-Because orders are signed as intents off-chain, the system must handle the case where a user signs an order and subsequently initiates an emergency withdrawal.
+Because orders are signed off-chain via the SOR, the system must handle the case where a user signs an order and subsequently initiates an emergency withdrawal.
 
-- **The 24h Sync Window:** The `emergencyWithdraw` function imposes a 24-hour delay. This is a critical design feature that allows the Web2 Matching Engine to monitor the blockchain, detect a user's intent to withdraw, and proactively cancel or block that user's off-chain orders before the funds are actually released.
+- **The 24h Sync Window:** The `emergencyWithdraw` function imposes a 24-hour delay. This is a critical design feature that allows the Web2 Matching Engine to monitor the blockchain, detect a user's withdrawal request, and proactively cancel or block that user's off-chain orders before the funds are actually released.
 - **On-Chain Failsafe:** As a final layer of defense (e.g., during Web2 engine downtime), the `Sera.sol` internal matching functions explicitly execute an invariant check: `vault.balanceOf(token, user) >= requiredMatchAmount`.
 - **Graceful Failure:** Invalidly backed orders (those without sufficient vault balance) immediately halt and fail to match. Relying wrappers (`SeraBatcher`) can gracefully continue parsing remaining orders without dropping the entire payload.
 
@@ -55,12 +55,12 @@ Important distinction:
 - final-leg positive slippage still follows the configured `SlippageShare` split and reaches the taker recipient or Vault balance normally
 - intermediate surplus is either zero (ME calibrated) or returned to taker vault (safety net)
 
-### Intent Hardening: Signed Recipient & Deposit Amount
-The SOR intent (`INTENT_TYPEHASH`) cryptographically commits to two critical fields:
-1. **`recipient`** — The address where the taker's output is delivered. Every terminal leg in the route must have its `order0.recipient` match the signed `intent.recipient`. This prevents an executor from redirecting output to an arbitrary address (output hijacking).
-2. **`initialDepositAmount`** — The exact amount to pull from the taker's wallet. The contract verifies `matches[0].order0.initialDepositAmount == intent.initialDepositAmount` and uses this as the wallet pull amount. A value of `0` means vault-only settlement. This prevents an executor from pulling more tokens from the taker's wallet than authorized.
+### SOR Hardening: Signed Recipient & Deposit Amount
+The SOR typed struct (`INTENT_TYPEHASH` — refers to SOR parameters in code) cryptographically commits to two critical fields:
+1. **`recipient`** — The address where the taker's output is delivered. Every terminal leg in the route must have its `order0.recipient` match the signed SOR `recipient`. This prevents an executor from redirecting output to an arbitrary address (output hijacking).
+2. **`initialDepositAmount`** — The exact amount to pull from the taker's wallet. The contract verifies `matches[0].order0.initialDepositAmount == intent.initialDepositAmount` (SOR parameters) and uses this as the wallet pull amount. A value of `0` means vault-only settlement. This prevents an executor from pulling more tokens from the taker's wallet than authorized.
 
-Both fields are bundled into the `IntentParams` struct (see `SeraLib.sol`) and passed as a single calldata parameter to `executeIntent`, reducing stack depth and improving readability.
+Both fields are bundled into the `IntentParams` struct (SOR parameters — see `SeraLib.sol`) and passed as a single calldata parameter to `executeIntent` (SOR execution entry point), reducing stack depth and improving readability.
 
 ## 8. Vault `creditLedger` Caller Invariant
 `Vault.creditLedger()` no longer checks physical token surplus on-chain before crediting balances. Instead, it relies on a strict caller invariant:
@@ -72,7 +72,7 @@ This is the pattern used by `Sera` during normal settlement and treasury sweeps.
 `creditLedger()` also enforces `user != address(0)` as a sanity guard to ensure no vault balance can ever be credited to the zero address, preventing irrecoverable ledger entries.
 
 ## 9. EIP-712 Canonical Array Encoding in `executeInstantWithdrawDualSig`
-The `WithdrawIntent` struct contains an `address[]` tokens field. Per the EIP-712 specification, each `address` element in an array must be encoded as a 32-byte left-zero-padded word before hashing. Using `abi.encodePacked(address[])` would pack each address into 20 bytes, producing a hash incompatible with standard wallets (MetaMask, Rabby) and SDKs (ethers.js, viem).
+The `WithdrawIntent` struct (SOR withdrawal request) contains an `address[]` tokens field. Per the EIP-712 specification, each `address` element in an array must be encoded as a 32-byte left-zero-padded word before hashing. Using `abi.encodePacked(address[])` would pack each address into 20 bytes, producing a hash incompatible with standard wallets (MetaMask, Rabby) and SDKs (ethers.js, viem).
 
 The implementation uses a private `_hashAddressArray()` helper that casts each address to `bytes32` before concatenating and hashing, ensuring full EIP-712 compliance and interoperability with all standard signing tools.
 

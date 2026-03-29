@@ -1,6 +1,6 @@
-# Audit FAQ: Intentional Design Choices & "Gas-Over-Verify" Patterns
+# Audit FAQ: Deliberate Design Choices & "Gas-Over-Verify" Patterns
 
-This document serves as a reference for security auditors to understand specific architectural patterns in the Sera Orderbook that may initially appear as vulnerabilities but are intentional gas optimizations with mathematically enforced security.
+This document serves as a reference for security auditors to understand specific architectural patterns in the Sera Orderbook that may initially appear as vulnerabilities but are deliberate gas optimizations with mathematically enforced security.
 
 ---
 
@@ -36,7 +36,7 @@ Fee-on-transfer assets are outside the supported asset model. The protocol enfor
 2. Any token attempting to implement a tax or burn on transfer will be excluded from the whitelist.
 3. This significantly simplifies the core logic and saves gas for 99% of standard tokens (USDC, USDT, WETH, etc.) by avoiding double `balanceOf` checks.
 
-Within that supported asset universe, there is no accounting issue to fix. If governance were to intentionally whitelist a non-standard asset class anyway, that would be an explicit policy violation rather than an unexpected protocol bug.
+Within that supported asset universe, there is no accounting issue to fix. If governance were to deliberately whitelist a non-standard asset class anyway, that would be an explicit policy violation rather than an unexpected protocol bug.
 
 ---
 
@@ -94,7 +94,7 @@ This has been mathematically verified by modeling the `_calculateSettlement` log
 
 ---
 
-## 5. feeBps = 10000 (100%) Is Intentional User Consent
+## 5. feeBps = 10000 (100%) Is Deliberate User Consent
 
 **Location:** `Sera._validateOrderCommon`
 
@@ -108,7 +108,7 @@ if (order.feeBps > BPS_DENOMINATOR) revert InvalidFee();
 
 This allows `feeBps = 10000` (100%). With a 100% fee, the fee recipient's token output goes entirely to treasury and the signer receives nothing.
 
-### Why This Is Intentional
+### Why This Is Deliberate
 
 The `feeBps` field is part of the **EIP-712 signed order struct**. A user who signs an order with `feeBps = 10000` has cryptographically consented to donating 100% of their output to the protocol. This could be used legitimately (e.g. a treasury deposit order, a promotional zero-output trade, or a protocol-owned market maker order).
 
@@ -126,9 +126,9 @@ A *real* vulnerability would be if an executor could **modify** `feeBps` after s
 
 When a token is removed from the whitelist, existing orders for that token that have already been partially filled can continue to be matched. The whitelist check (`if (!config.isWhitelisted) revert;`) is only performed on the first fill (`if (filled == 0)`).
 
-### Intentional Design
+### Deliberate Design
 
-This is an intentional design choice to shift responsibility to the execution layer. The smart contract is designed to be **reactive rather than authoritative**.
+This is a deliberate design choice to shift responsibility to the execution layer. The smart contract is designed to be **reactive rather than authoritative**.
 
 If a token is deemed unsafe and de-whitelisted, the off-chain execution engine (web2 layer) will cease to include orders involving that token in its match payloads. The on-chain state remains valid, but the path to execution is severed off-chain. Users are expected to manually cancel their outstanding orders for de-whitelisted tokens if they wish to formally void them on-chain.
 
@@ -150,7 +150,7 @@ Only standard, fixed-supply ERC20 tokens are whitelisted via `SeraAdmin.batchMod
 
 ---
 
-## 8. `toToken` Whitelist Is Intentionally Unchecked
+## 8. `toToken` Whitelist Is Deliberately Unchecked
 
 **Location:** `Sera._validateOrderCommon`
 
@@ -158,7 +158,7 @@ Only standard, fixed-supply ERC20 tokens are whitelisted via `SeraAdmin.batchMod
 
 The whitelist check in `_validateOrderCommon` only validates `order.fromToken`. `order.toToken` is never explicitly checked against the whitelist.
 
-### Intentional Design
+### Deliberate Design
 
 This is a phased deprecation strategy. If a token needs to be removed from the ecosystem, it is first hidden on the frontend interface. The off-chain (web2) matching engine will then cease to route orders involving this token. Once the off-chain layer has fully drained or expired relevant routes, the token is eventually removed from the on-chain whitelist.
 
@@ -188,7 +188,7 @@ This is an accepted tradeoff. The only entity that can submit these arrays is th
 
 When distributing the spread, the protocol fee and maker bonus are calculated using `mulDiv` which rounds down. The taker bonus is calculated as the residual: `takerBonus0 = totalSpread0 - protocolSpread0 - makerBonus`.
 
-### Intentional Incentive Alignment
+### Deliberate Incentive Alignment
 
 Because the taker receives the residual, the taker absorbs all rounding dust (up to 2 wei per settlement side). This creates a slight systematic bias favoring the taker.
 
@@ -202,7 +202,7 @@ This is a deliberate design choice in DEX math. Takers are the active participan
 
 When a user is blacklisted via `Vault.setBlacklisted()`, they are prevented from depositing new funds (`Vault.deposit()`). However, `transferLedger()` and `withdraw()` do not check the recipient's blacklist status. If an order previously signed by the blacklisted user is matched, their vault balance can still be credited.
 
-### Intentional Design
+### Deliberate Design
 
 This pattern correctly models the distinction between **inbound capital restriction** and **asset custody guarantees**.
 
@@ -250,7 +250,7 @@ The primary "risk" is that a front-running bot can observe the permit signature 
 - **Impact on Relayer/Sponsor:** The sponsor's transaction will revert (since the permit nonce is already consumed by the bot), causing the sponsor to waste gas on a failed execution.
 
 ### Design Enforcement
-This is an **intentional design choice** to enable gasless user deposits (sponsored by the protocol). The cost of rare gas griefing against the platform is accepted as a tradeoff for the improved user onboarding experience. Off-chain relayers can mitigate this by checking if the permit nonce is already used before submitting their own transaction.
+This is a **deliberate design choice** to enable gasless user deposits (sponsored by the protocol). The cost of rare gas griefing against the platform is accepted as a tradeoff for the improved user onboarding experience. Off-chain relayers can mitigate this by checking if the permit nonce is already used before submitting their own transaction.
 
 ---
 
@@ -282,7 +282,7 @@ If an intermediate leg produces more output than downstream signed legs are conf
 
 ### Design Tradeoff
 
-This is an intentional pragmatic tradeoff:
+This is a deliberate pragmatic tradeoff:
 - it prevents valid routes from reverting on intermediate positive slippage
 - it prevents leftover tokens from remaining stuck in the contract (they trigger a revert)
 - it preserves the existing signed route model without a major refactor for dynamic downstream resizing
