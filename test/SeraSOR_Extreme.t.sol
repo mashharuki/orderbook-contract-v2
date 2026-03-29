@@ -255,10 +255,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
 
         // Leg 1: USDC→ETH with 3% taker fee, spread
         Order memory t1 = _makeOrder(taker, address(usdc), address(eth), 1000 ether, 8 ether, 1);
-        t1.feeBps = 300; // 3%
+        t1.feeBps = 3_000_000_000_000; // 3%
         t1.recipient = address(sera);
         Order memory m1 = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 800 ether, 2);
-        m1.feeBps = 100; // 1%
+        m1.feeBps = 1_000_000_000_000; // 1%
 
         // Leg 2: ETH→BTC with sentinel, 1% taker, 0.5% maker
         // Taker receives ~7.76 ETH from Leg 1 (after fee+spread distribution)
@@ -266,9 +266,9 @@ contract SeraSOR_Extreme_Test is TestHelper {
         // executionValue0 = Ceil(effectiveETH * 1/10) = ~1 BTC
         // executionValue1 = Ceil(1 * 5/1) = 5 ETH. effectiveETH(~7.76) >= 5 ✓
         Order memory t2 = _makeOrder(taker, address(eth), address(btc), 10 ether, 1 ether, 3);
-        t2.feeBps = 100;
+        t2.feeBps = 1_000_000_000_000;
         Order memory m2 = _makeOrder(maker2, address(btc), address(eth), 1 ether, 5 ether, 4);
-        m2.feeBps = 50;
+        m2.feeBps = 500_000_000_000;
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 1000 ether, m1, _signOrder(maker1PK, m1, sera), 10 ether);
@@ -475,19 +475,19 @@ contract SeraSOR_Extreme_Test is TestHelper {
 
         // 2-leg: USDC→ETH→BTC with fees
         Order memory t1 = _makeOrder(taker, address(usdc), address(eth), 2000 ether, 15 ether, 1);
-        t1.feeBps = 200; // 2%
+        t1.feeBps = 2_000_000_000_000; // 2%
         t1.recipient = address(sera);
         Order memory m1 = _makeOrder(maker1, address(eth), address(usdc), 20 ether, 1500 ether, 2);
-        m1.feeBps = 100;
+        m1.feeBps = 1_000_000_000_000;
 
         // From Leg 1: taker gets ~15 ETH (before fees/spread adjustments → maybe ~14 ETH)
         // Leg 2: taker: 20→1 BTC, maker: 3→10 ETH
         // executionValue0 = Ceil(effectiveETH * 1/20) = ~1 BTC
         // executionValue1 = Ceil(3 * 10/3) = 10 ETH. effectiveETH(~14) >= 10 ✓
         Order memory t2 = _makeOrder(taker, address(eth), address(btc), 20 ether, 1 ether, 3);
-        t2.feeBps = 150;
+        t2.feeBps = 1_500_000_000_000;
         Order memory m2 = _makeOrder(maker2, address(btc), address(eth), 3 ether, 10 ether, 4);
-        m2.feeBps = 50;
+        m2.feeBps = 500_000_000_000;
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 2000 ether, m1, _signOrder(maker1PK, m1, sera), 20 ether);
@@ -572,9 +572,9 @@ contract SeraSOR_Extreme_Test is TestHelper {
 
         // 100% fee, plus spread
         Order memory t = _makeOrder(taker, address(usdc), address(eth), 1000 ether, 8 ether, 1);
-        t.feeBps = 10000;
+        t.feeBps = 100_000_000_000_000;
         Order memory m = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 800 ether, 2);
-        m.feeBps = 10000;
+        m.feeBps = 100_000_000_000_000;
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);

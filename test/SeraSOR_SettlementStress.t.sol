@@ -107,13 +107,13 @@ contract SeraSOR_SettlementStress_Test is TestHelper {
         uint16 makerShare,
         uint16 takerShare,
         uint16 protocolShare,
-        uint16 feeBpsTaker,
-        uint16 feeBpsMaker
+        uint48 feeBpsTaker,
+        uint48 feeBpsMaker
     ) public {
         uint256 totalShare = uint256(makerShare) + uint256(takerShare) + uint256(protocolShare);
         vm.assume(totalShare > 0);
-        vm.assume(feeBpsTaker <= 10000);
-        vm.assume(feeBpsMaker <= 10000);
+        vm.assume(feeBpsTaker <= 100_000_000_000_000);
+        vm.assume(feeBpsMaker <= 100_000_000_000_000);
 
         vm.prank(owner);
         sera.setSlippageShares(uint64(makerShare), uint64(takerShare), uint64(protocolShare), uint64(totalShare));
@@ -152,11 +152,11 @@ contract SeraSOR_SettlementStress_Test is TestHelper {
 
     /// @notice 2-leg route with random per-leg fees, exact pricing (zero spread).
     function testFuzz_TwoLeg_MECalibrated_PerLegFees(
-        uint16 feeTakerLeg1,
-        uint16 feeMakerLeg2
+        uint48 feeTakerLeg1,
+        uint48 feeMakerLeg2
     ) public {
-        vm.assume(feeTakerLeg1 <= 5000); // max 50%
-        vm.assume(feeMakerLeg2 <= 5000);
+        vm.assume(feeTakerLeg1 <= 50_000_000_000_000); // max 50%
+        vm.assume(feeMakerLeg2 <= 50_000_000_000_000);
 
         _mintAndDeposit(taker, address(A), 1000 ether, sera);
         _mintAndDeposit(m1, address(B), 500 ether, sera);
@@ -167,7 +167,7 @@ contract SeraSOR_SettlementStress_Test is TestHelper {
         Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 500 ether, 1, feeTakerLeg1, address(sera));
         Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 1000 ether, 2, 0, address(0));
 
-        uint256 leg1Output = 500 ether - Math.mulDiv(500 ether, feeTakerLeg1, 10000);
+        uint256 leg1Output = 500 ether - Math.mulDiv(500 ether, feeTakerLeg1, 100_000_000_000_000);
         vm.assume(leg1Output > 0);
 
         // Leg 2: B->C. sentinel=leg1Output. ME calibrates maker: leg1Output C -> leg1Output B. 1:1.
@@ -409,7 +409,7 @@ contract SeraSOR_SettlementStress_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk, _signOrder(m1PK, mk, sera), 10 ether);
         _exec(matches);
 
-        // spreadToMaker0 = mulDiv(200, 9998, 10000) = 199.96e18
+        // spreadToMaker0 = mulDiv(200, 9998, 10000) = 199.96e18 (slippage shares use 10000 base)
         // protocolSpread0 = mulDiv(200, 1, 10000) = 0.02e18
         // spreadToTaker0 = 200 - 199.96 - 0.02 = 0.02e18
         // neededFromTaker is very low, taker retains most of spread (via makerBonus0)
@@ -473,17 +473,17 @@ contract SeraSOR_SettlementStress_Test is TestHelper {
         _mintAndDeposit(m2, address(C), 500 ether, sera);
 
         // Leg 1: 50% taker, 50% maker. 1000A->500B. Exact pricing.
-        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 500 ether, 1, 5000, address(sera));
-        Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 1000 ether, 2, 5000, address(0));
+        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 500 ether, 1, 50_000_000_000_000, address(sera));
+        Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 1000 ether, 2, 50_000_000_000_000, address(0));
 
         // takerReceives from leg1:
-        // executionValue0 = 500. protocolFee1 = mulDiv(500, 5000, 10000) = 250.
+        // executionValue0 = 500. protocolFee1 = mulDiv(500, 5e13, 1e14) = 250.
         // takerReceives = 500 - 250 = 250B.
         uint256 leg1Output = 250 ether;
 
         // Leg 2: 50% taker, 50% maker. sentinel=250B. 250C->250B. Exact.
-        Order memory t2 = _oFull(taker, address(B), address(C), 500 ether, 500 ether, 3, 5000, taker);
-        Order memory mk2 = _oFull(m2, address(C), address(B), leg1Output, leg1Output, 4, 5000, address(0));
+        Order memory t2 = _oFull(taker, address(B), address(C), 500 ether, 500 ether, 3, 50_000_000_000_000, taker);
+        Order memory mk2 = _oFull(m2, address(C), address(B), leg1Output, leg1Output, 4, 50_000_000_000_000, address(0));
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk1, _signOrder(m1PK, mk1, sera), 500 ether);

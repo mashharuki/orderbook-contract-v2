@@ -134,7 +134,7 @@ contract SeraSOR_Settlement_Test is TestHelper {
     /// @notice First leg with spread: taker vault retains surplus instead of round-tripping.
     /// On-chain math reference:
     ///   executionValue1 = Ceil(matchAmount1 * order1.toAmount / order1.fromAmount)
-    ///   protocolFee0 = mulDiv(executionValue1, order1.feeBps, 10000) — uses ORIGINAL executionValue1
+    ///   protocolFee0 = mulDiv(executionValue1, order1.feeBps, 1e14) — uses ORIGINAL executionValue1
     ///   spreadToTaker0 inflates calc.executionValue1 AFTER protocolFee0 is computed
     ///   makerReceives = calc.executionValue1 - protocolFee0
     ///   neededFromTaker = makerReceives + protocolTake0
@@ -180,20 +180,20 @@ contract SeraSOR_Settlement_Test is TestHelper {
     }
 
     /// @notice First leg with fees + spread: verify exact surplus.
-    /// protocolFee0 = mulDiv(executionValue1_ORIGINAL, maker.feeBps, 10000)
+    /// protocolFee0 = mulDiv(executionValue1_ORIGINAL, maker.feeBps, 1e14)
     function test_VaultPull_FirstLeg_WithFees() public {
         _mintAndDeposit(taker, address(A), 1000 ether, sera);
         _mintAndDeposit(m1, address(B), 100 ether, sera);
 
-        // taker 3% (300 bps), maker 1% (100 bps)
-        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 8 ether, 1, 300, taker);
-        Order memory mk = _oFull(m1, address(B), address(A), 10 ether, 800 ether, 2, 100, address(0));
+        // taker 3% (3e12 bps), maker 1% (1e12 bps)
+        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 8 ether, 1, 3_000_000_000_000, taker);
+        Order memory mk = _oFull(m1, address(B), address(A), 10 ether, 800 ether, 2, 1_000_000_000_000, address(0));
 
-        // executionValue1 = 800. protocolFee0 = mulDiv(800, 100, 10000) = 8.
+        // executionValue1 = 800. protocolFee0 = mulDiv(800, 1e12, 1e14) = 8.
         // totalSpread0 = 200. spreadToTaker0 = 50. calc.executionValue1 = 850.
         // makerReceives = 850 - 8 = 842.
         // protocolTake0 = 8 + 100 = 108. neededFromTaker = 842 + 108 = 950.
-        uint256 protocolFee0 = Math.mulDiv(800 ether, 100, 10000); // = 8e18
+        uint256 protocolFee0 = Math.mulDiv(800 ether, 1_000_000_000_000, 100_000_000_000_000); // = 8e18
         uint256 makerReceives = 850 ether - protocolFee0; // = 842e18
         uint256 protocolTake0 = protocolFee0 + 100 ether; // = 108e18
         uint256 neededFromTaker = makerReceives + protocolTake0; // = 950e18
@@ -281,17 +281,17 @@ contract SeraSOR_Settlement_Test is TestHelper {
         _mintAndDeposit(m2, address(C), 500 ether, sera);
 
         // Leg 1: 1000A->500B. Exact pricing. 5% taker, 0% maker.
-        // executionValue0 = Ceil(1000*500/1000) = 500B. protocolFee1 = mulDiv(500, 500, 10000) = 25.
+        // executionValue0 = Ceil(1000*500/1000) = 500B. protocolFee1 = mulDiv(500, 5e12, 1e14) = 25.
         // takerReceives = 500 - 25 = 475B.
-        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 500 ether, 1, 500, address(sera));
+        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 500 ether, 1, 5_000_000_000_000, address(sera));
         Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 1000 ether, 2, 0, address(0));
 
         // Leg 2: sentinel B->C. 0% taker, 10% maker. Sentinel = 475B.
         // ME calibrates: Maker 475C->475B. executionValue1 = 475. Spread = 0.
-        // protocolFee0 = mulDiv(475, 1000, 10000) = 47.5e18.
+        // protocolFee0 = mulDiv(475, 1e13, 1e14) = 47.5e18.
         // makerReceives = 475 - 47.5 = 427.5. protocolTake0 = 47.5.
         Order memory t2 = _oFull(taker, address(B), address(C), 500 ether, 100 ether, 3, 0, taker);
-        Order memory mk2 = _oFull(m2, address(C), address(B), 475 ether, 475 ether, 4, 1000, address(0));
+        Order memory mk2 = _oFull(m2, address(C), address(B), 475 ether, 475 ether, 4, 10_000_000_000_000, address(0));
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk1, _signOrder(m1PK, mk1, sera), 500 ether);
@@ -325,12 +325,12 @@ contract SeraSOR_Settlement_Test is TestHelper {
         Order memory mk2 = _oFull(m2, address(C), address(B), 250 ether, 500 ether, 4, 0, address(0));
 
         // Leg 3: C->D. 5% taker fee. sentinel=250C. 250C->125D. Exact.
-        // executionValue0 = Ceil(250*125/250) = 125. protocolFee1 = mulDiv(125, 500, 10000) = 6.25e18.
+        // executionValue0 = Ceil(250*125/250) = 125. protocolFee1 = mulDiv(125, 5e12, 1e14) = 6.25e18.
         // takerReceives = 125 - 6.25 = 118.75e18.
-        Order memory t3 = _oFull(taker, address(C), address(D), 250 ether, 125 ether, 5, 500, taker);
+        Order memory t3 = _oFull(taker, address(C), address(D), 250 ether, 125 ether, 5, 5_000_000_000_000, taker);
         Order memory mk3 = _oFull(m3, address(D), address(C), 125 ether, 250 ether, 6, 0, address(0));
 
-        uint256 fee = Math.mulDiv(125 ether, 500, 10000);
+        uint256 fee = Math.mulDiv(125 ether, 5_000_000_000_000, 100_000_000_000_000);
         uint256 expectedD = 125 ether - fee;
 
         MatchData[] memory matches = new MatchData[](3);
@@ -358,9 +358,9 @@ contract SeraSOR_Settlement_Test is TestHelper {
         Order memory mk1 = _oFull(m1, address(B), address(A), 50 ether, 100 ether, 2, 0, address(0));
 
         // Leg 2: B->C. 0% taker, 10% maker. sentinel=50B. 100C->50B.
-        // protocolFee0 = mulDiv(50, 1000, 10000) = 5. makerReceives = 50-5 = 45.
+        // protocolFee0 = mulDiv(50, 1e13, 1e14) = 5. makerReceives = 50-5 = 45.
         Order memory t2 = _oFull(taker, address(B), address(C), 50 ether, 50 ether, 3, 0, taker);
-        Order memory mk2 = _oFull(m2, address(C), address(B), 100 ether, 50 ether, 4, 1000, address(0));
+        Order memory mk2 = _oFull(m2, address(C), address(B), 100 ether, 50 ether, 4, 10_000_000_000_000, address(0));
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 100 ether, mk1, _signOrder(m1PK, mk1, sera), 50 ether);
@@ -495,9 +495,9 @@ contract SeraSOR_Settlement_Test is TestHelper {
         // All zero spread (ME calibrated). Per-leg fees.
 
         // Leg 1: A->B. 2% taker. 1000A->500B. Exact pricing (1:1 scaled).
-        // executionValue0 = Ceil(1000*500/1000) = 500B. protocolFee1 = mulDiv(500, 200, 10000) = 10.
+        // executionValue0 = Ceil(1000*500/1000) = 500B. protocolFee1 = mulDiv(500, 2e12, 1e14) = 10.
         // takerReceives = 490B.
-        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 500 ether, 1, 200, address(sera));
+        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 500 ether, 1, 2_000_000_000_000, address(sera));
         Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 1000 ether, 2, 0, address(0));
 
         // Leg 2: B->C. 0% fees. sentinel=490B. 1:1 pricing to consume exactly 490B.
@@ -507,12 +507,12 @@ contract SeraSOR_Settlement_Test is TestHelper {
 
         // Leg 3: C->D. 5% taker, 0% maker. sentinel=490C. 1:2 pricing.
         // Maker: 245D->490C. executionValue0 = Ceil(490*245/490) = 245D.
-        // protocolFee1 = mulDiv(245, 500, 10000) = 12.25e18.
+        // protocolFee1 = mulDiv(245, 5e12, 1e14) = 12.25e18.
         // takerReceives = 245 - 12.25 = 232.75e18.
-        Order memory t3 = _oFull(taker, address(C), address(D), 500 ether, 250 ether, 5, 500, taker);
+        Order memory t3 = _oFull(taker, address(C), address(D), 500 ether, 250 ether, 5, 5_000_000_000_000, taker);
         Order memory mk3 = _oFull(m3, address(D), address(C), 245 ether, 490 ether, 6, 0, address(0));
 
-        uint256 fee3 = Math.mulDiv(245 ether, 500, 10000);
+        uint256 fee3 = Math.mulDiv(245 ether, 5_000_000_000_000, 100_000_000_000_000);
         uint256 expectedD = 245 ether - fee3;
 
         MatchData[] memory matches = new MatchData[](3);

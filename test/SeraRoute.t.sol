@@ -331,7 +331,7 @@ contract SeraRouteTest is TestHelper {
             fromAmount: 1000 ether,
             toAmount: 10 ether,
             initialDepositAmount: 0,
-            feeBps: 1000,
+            feeBps: 10_000_000_000_000,
             recipient: taker,
             expiration: uint48(block.timestamp + 1 days),
             uuid: 7
@@ -343,7 +343,7 @@ contract SeraRouteTest is TestHelper {
             fromAmount: 10 ether,
             toAmount: 1000 ether,
             initialDepositAmount: 0,
-            feeBps: 1000,
+            feeBps: 10_000_000_000_000,
             recipient: maker1,
             expiration: uint48(block.timestamp + 1 days),
             uuid: 8
@@ -438,7 +438,7 @@ contract SeraRouteTest is TestHelper {
             fromAmount: 3 ether,
             toAmount: 5 ether,
             initialDepositAmount: 0,
-            feeBps: 1000, // 10% !!
+            feeBps: 10_000_000_000_000, // 10% !!
             recipient: taker,
             expiration: uint48(block.timestamp + 1 days),
             uuid: 74
@@ -450,7 +450,7 @@ contract SeraRouteTest is TestHelper {
             fromAmount: 5 ether,
             toAmount: 3 ether,
             initialDepositAmount: 0,
-            feeBps: 1000, // 10%
+            feeBps: 10_000_000_000_000, // 10%
             recipient: maker3,
             expiration: uint48(block.timestamp + 1 days),
             uuid: 75
