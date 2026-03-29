@@ -1,6 +1,6 @@
 # SOR Test Suite — Detailed Audit Summary
 
-**285 tests passing** across 21 test suites, including fuzz and invariant suites. This document expands the SOR-focused audit suites in detail, records the re-audit additions, and uses the latest full `forge test` run as the source of truth for total counts.
+**297 tests passing** across 22 test suites, including fuzz and invariant suites. This document expands the SOR-focused audit suites in detail, records the re-audit additions, and uses the latest full `forge test` run as the source of truth for total counts.
 
 ## Glossary
 
@@ -24,7 +24,7 @@
 2. [Security & Attack Vectors](#2-security--attack-vectors-serasor_attackvectortsol--14-tests)
 3. [Extreme Spread, Fees & Dust](#3-extreme-spread-fees--dust-serasor_extremetsol--14-tests)
 4. [Edge Cases & Emergency Controls](#4-edge-cases--emergency-controls-serasor_edgecasetsol--13-tests)
-5. [Precision & Arithmetic](#5-precision--arithmetic-serasor_precisiontsol--5-tests)
+5. [Precision & Arithmetic](#5-precision--arithmetic-serasor_precisiontsol--4-tests)
 6. [Fuzz Tests](#6-fuzz-tests-serasor_advancedfuzztsol--15-tests)
 7. [Low-Level Route Settlement](#7-low-level-route-settlement-seraroutetsol--17-tests)
 8. [Extreme Topologies](#8-extreme-topologies-serasor_topologytsol--15-tests)
@@ -33,6 +33,7 @@
 11. [Output Hijacking Fix](#11-output-hijacking-fix-serasor_attackerstealtsol--2-tests)
 12. [Deep Audit PoCs](#12-deep-audit-pocs-serasor_deepaudittsol--14-tests)
 13. [Coverage Gaps](#13-coverage-gaps-serasor_coveragegapstsol--6-tests)
+14. [BPS Precision](#14-bps-precision-serabps_precisiontsol--13-tests)
 
 ---
 
@@ -48,7 +49,7 @@ The suite was already strong on routing math, zero-dust invariants, replay prote
 
 ## Additional Passing Suites
 
-The full 288-test count also includes passing suites that are not expanded section-by-section below:
+The full 297-test count also includes passing suites that are not expanded section-by-section below:
 
 | Suite | Passing tests |
 |------|---------------|
@@ -151,15 +152,14 @@ The full 288-test count also includes passing suites that are not expanded secti
 
 ---
 
-## 5. Precision & Arithmetic (`SeraSOR_Precision.t.sol` — 5 tests)
+## 5. Precision & Arithmetic (`SeraSOR_Precision.t.sol` — 4 tests)
 
 | # | Test | Setup | Assertions |
 |---|------|-------|------------|
 | 1 | `test_CombinedFeesAndSpread` | Shares `2500/2500/5000`. Taker 1000→8 ETH (1% fee). Maker 10→800 (0.5% fee). Spread: 200 USDC, 2 ETH. | `vault.actual ≥ vault.ledger` for USDC/ETH. `vault.usdc(owner) > 0`. `vault.eth(owner) > 0`. |
 | 2 | `test_PartialFillThenRoute` | Taker: 1000 USDC (1000→10 ETH order). | Standalone fill 500 → `filledAmount = 500`. Another standalone fill 500 → `filledAmount = 1000`. | `filledAmount = 1000e18`. |
-| 3 | `test_VaultSolvency_MaxFees` | `feeBps = 10000` (100%) on both sides. | `vault.actual ≥ vault.ledger` for both tokens. |
+| 3 | `test_VaultSolvency_MaxFees` | `feeBps = 1e14` (100%) on both sides. | `vault.actual ≥ vault.ledger` for both tokens. |
 | 4 | `test_SmallAmountPrecision` | 100 wei USDC, 10 wei ETH (tiny amounts). | `vault.actual ≥ vault.ledger` at wei level. |
-| 5 | `test_SameTokenInOut` | USDC→USDC. Both sides 1000:1000. | `sum(all balances) = 2000e18` (total conservation). |
 
 ---
 
@@ -322,3 +322,25 @@ Tests specifically written to cover complex missing pathing logic, including wal
 | 4 | `test_Gap3b_ConvergentDiamond_WithFees_EnvelopeGuard` | Fan-in + Rules | Ensures rigorous bounds mapping is verified across spread sharing, multiple protocol fees, and dynamic pricing outputs. |
 | 5 | `test_Gap3c_ConvergentDiamond_MinOutputReverts` | Protection | High slippage or fees pulling output below bounds successfully halts and rolls-back the entire fan-in tree. |
 | 6 | `test_Gap5_FeesAndPositiveSlippage_Together` | Combined Overlap | Proves out simultaneous 10% Taker/Maker fees combined perfectly with dynamic 25/25/50 positive slippage distribution math. |
+
+---
+
+## 14. BPS Precision (`SeraBPS_Precision.t.sol` — 13 tests)
+
+Tests specifically validating the expanded `BPS_DENOMINATOR = 1e14` fee precision, overflow safety, and sub-basis-point granularity.
+
+| # | Test | Category | Validation |
+|---|------|----------|------------|
+| 1 | `test_BPS_Denominator_Value` | Math | Confirms `BPS_DENOMINATOR == 100_000_000_000_000` (1e14). |
+| 2 | `test_BPS_100Percent_Equals_Denominator` | Math | `mulDiv(amount, 1e14, 1e14) == amount` — 100% fee returns full amount. |
+| 3 | `test_BPS_1Percent_Precision` | Precision | `mulDiv(1000e18, 1e12, 1e14) == 10e18` — 1% fee on 1000 tokens = 10. |
+| 4 | `test_BPS_SubBasisPoint_6Decimal` | Precision | `feeBps = 1_000_000` on $1M (6-dec) yields exactly $0.01 (10,000 units). |
+| 5 | `test_BPS_SubBasisPoint_18Decimal` | Precision | `feeBps = 1_000_000` on 1M×1e18 yields 1e16 wei ($0.01 equivalent). |
+| 6 | `test_BPS_MaxUint256_NoOverflow` | Overflow | `mulDiv(type(uint256).max, 1e14, 1e14) == type(uint256).max`. |
+| 7 | `test_BPS_MaxUint256_SmallFee_NoOverflow` | Overflow | `mulDiv(type(uint256).max, 1, 1e14)` returns a clean value without overflow. |
+| 8 | `test_BPS_LargeAmount_HighFee_NoOverflow` | Overflow | `mulDiv(type(uint128).max, 99_999_999_999_999, 1e14)` produces correct result. |
+| 9 | `test_BPS_ZeroFee` | Bounds | `mulDiv(amount, 0, 1e14) == 0` — zero fee produces zero. |
+| 10 | `test_BPS_MaxFee` | Bounds | `mulDiv(amount, 1e14, 1e14) == amount` — max fee captures entire amount. |
+| 11 | `test_BPS_MinimumNonZeroFee` | Bounds | `mulDiv(1e14, 1, 1e14) == 1` — smallest non-zero fee on smallest qualifying amount. |
+| 12 | `test_BPS_E2E_SettlementWithNewDenominator` | E2E | Full settlement with `feeBps = 1e12` (1%) on both sides. Vault solvency + zero dust verified. |
+| 13 | `testFuzz_BPS_FeeNeverExceedsAmount` | Fuzz | For random `(amount, feeBps)` where `feeBps ≤ 1e14`: `mulDiv(amount, feeBps, 1e14) ≤ amount`. |

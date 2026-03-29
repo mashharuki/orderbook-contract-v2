@@ -199,11 +199,11 @@ contract SeraTest is TestHelper {
         _mintAndDeposit(user2, address(SGD), 1000 ether, orderBook);
 
         Order memory order1 = _createMakerOrder(user1, address(USDT), address(SGD), 1000 ether, 100 ether, 1);
-        order1.feeBps = 1000; // 10%
+        order1.feeBps = 10_000_000_000_000; // 10%
         bytes memory sig1 = _signOrder(user1PK, order1, orderBook);
 
         Order memory order2 = _createMakerOrder(user2, address(SGD), address(USDT), 100 ether, 1000 ether, 2);
-        order2.feeBps = 1000; // 10%
+        order2.feeBps = 10_000_000_000_000; // 10%
         bytes memory sig2 = _signOrder(user2PK, order2, orderBook);
 
         MatchData memory matchData = MatchData({
@@ -240,7 +240,7 @@ contract SeraTest is TestHelper {
 
         // Taker market order: 5% fee (500 bps)
         Order memory takerOrder = _createMakerOrder(taker, address(SGD), address(USDT), 100 ether, 1000 ether, 2);
-        takerOrder.feeBps = 500; // Taker pays 5% fees
+        takerOrder.feeBps = 5_000_000_000_000; // Taker pays 5% fees
         bytes memory takerSig = _signOrder(takerPK, takerOrder, orderBook);
 
         MatchData memory matchData = MatchData({
@@ -655,11 +655,11 @@ contract SeraTest is TestHelper {
         // Setup mock orders
         // User 0 expects to pay 100 USDT for 100 SGD (Fee: 1000 bps = 10%)
         Order memory o0 = _createMakerOrder(u1, address(USDT), address(SGD), 100 ether, 100 ether, 1);
-        o0.feeBps = 1000;
+        o0.feeBps = 10_000_000_000_000;
 
         // User 1 expects to pay 100 SGD for 100 USDT (Fee: 500 bps = 5%)
         Order memory o1 = _createMakerOrder(u2, address(SGD), address(USDT), 100 ether, 100 ether, 2);
-        o1.feeBps = 500;
+        o1.feeBps = 5_000_000_000_000;
 
         // Let's set the slippage explicitly as:
         // Treasury: 50%, Maker: 25%, Taker: 25% to verify exactly how it breaks down.
@@ -747,11 +747,11 @@ contract SeraTest is TestHelper {
 
         // Maker sells 50 ETH for 80,000 USDC
         Order memory o0 = _createMakerOrder(u1, address(USDT), address(SGD), 50 ether, 80000 ether, 1);
-        o0.feeBps = 800; // 8%
+        o0.feeBps = 8_000_000_000_000; // 8%
 
         // Taker sells 82,000 USDC for 40 ETH
         Order memory o1 = _createMakerOrder(u2, address(SGD), address(USDT), 82000 ether, 40 ether, 2);
-        o1.feeBps = 200; // 2%
+        o1.feeBps = 2_000_000_000_000; // 2%
 
         vm.prank(owner);
         harness.setSlippageShares(3000, 3000, 4000, 10000); // maker: 30%, taker: 30%, protocol: 40%

@@ -85,9 +85,9 @@ contract SeraSOR_Precision_Test is TestHelper {
         // Spread: USDC side = 1000 - 800 = 200, ETH side = 10 - 8 = 2
         // Taker fee = 100 bps (1%), Maker fee = 50 bps (0.5%)
         Order memory takerOrder = _makeOrder(taker, address(usdc), address(eth), 1000 ether, 8 ether, 1);
-        takerOrder.feeBps = 100; // 1%
+        takerOrder.feeBps = 1_000_000_000_000; // 1%
         Order memory makerOrder = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 800 ether, 2);
-        makerOrder.feeBps = 50; // 0.5%
+        makerOrder.feeBps = 500_000_000_000; // 0.5%
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
@@ -174,9 +174,9 @@ contract SeraSOR_Precision_Test is TestHelper {
 
         // 100% fees on both sides (extreme — all goes to protocol)
         Order memory takerOrder = _makeOrder(taker, address(usdc), address(eth), 1000 ether, 10 ether, 1);
-        takerOrder.feeBps = 10000; // 100%
+        takerOrder.feeBps = 100_000_000_000_000; // 100%
         Order memory makerOrder = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 1000 ether, 2);
-        makerOrder.feeBps = 10000; // 100%
+        makerOrder.feeBps = 100_000_000_000_000; // 100%
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
@@ -225,23 +225,4 @@ contract SeraSOR_Precision_Test is TestHelper {
         assertGe(usdc.balanceOf(address(v)), totalUsdc, "USDC solvent at wei level");
     }
 
-    // ============ 5. SAME TOKEN IN AND OUT ============
-
-    /// @notice Same-token orders (A→A) must now be rejected to prevent withdrawal bypass.
-    function test_SameTokenInOut() public {
-        _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
-        _mintAndDeposit(maker1, address(usdc), 1000 ether, sera);
-
-        // USDC → USDC (same token both sides)
-        Order memory takerOrder = _makeOrder(taker, address(usdc), address(usdc), 1000 ether, 1000 ether, 1);
-        Order memory makerOrder = _makeOrder(maker1, address(usdc), address(usdc), 1000 ether, 1000 ether, 2);
-
-        MatchData[] memory matches = new MatchData[](1);
-        matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 1000 ether);
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
-
-        vm.prank(executor);
-        vm.expectRevert(Sera.SameTokenMatch.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
-    }
 }

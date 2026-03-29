@@ -94,7 +94,7 @@ This has been mathematically verified by modeling the `_calculateSettlement` log
 
 ---
 
-## 5. feeBps = 10000 (100%) Is Deliberate User Consent
+## 5. feeBps = 100_000_000_000_000 (100%) Is Deliberate User Consent
 
 **Location:** `Sera._validateOrderCommon`
 
@@ -106,13 +106,23 @@ The fee validation uses a strict greater-than check:
 if (order.feeBps > BPS_DENOMINATOR) revert InvalidFee();
 ```
 
-This allows `feeBps = 10000` (100%). With a 100% fee, the fee recipient's token output goes entirely to treasury and the signer receives nothing.
+`BPS_DENOMINATOR` is `100_000_000_000_000` (1e14), stored as a `uint48`. This expanded denominator allows sub-basis-point fee granularity — for example, charging exactly $0.01 on a $1M order with 6-decimal tokens (feeBps = 1_000_000). The maximum value `feeBps = 1e14` represents a 100% fee, where the fee recipient's token output goes entirely to treasury and the signer receives nothing.
 
 ### Why This Is Deliberate
 
-The `feeBps` field is part of the **EIP-712 signed order struct**. A user who signs an order with `feeBps = 10000` has cryptographically consented to donating 100% of their output to the protocol. This could be used legitimately (e.g. a treasury deposit order, a promotional zero-output trade, or a protocol-owned market maker order).
+The `feeBps` field is part of the **EIP-712 signed order struct**. A user who signs an order with `feeBps = 100_000_000_000_000` has cryptographically consented to donating 100% of their output to the protocol. This could be used legitimately for gas subsidy.
 
 The contract correctly honors exactly what the user signed — this is the core security model. No executor can set `feeBps` above what the user signed.
+
+### Fee Precision Table
+
+| `feeBps` value | Percentage | Fee on $1M (18-dec) | Fee on $1M (6-dec) |
+|---|---|---|---|
+| 1 | 0.0000000001% | 1e10 wei | 0 (rounds to 0) |
+| 1_000_000 | 0.001% | 1e16 wei | 10,000 units ($0.01) |
+| 10_000_000_000 | 1 old bps (0.01%) | 1e14 wei ($100) | 1e8 units ($100) |
+| 1_000_000_000_000 | 1% | 1e22 wei ($10k) | 1e10 units ($10k) |
+| 100_000_000_000_000 | 100% | Full amount | Full amount |
 
 ### Distinction from a Real Vulnerability
 
@@ -172,11 +182,13 @@ During the wind-down window, the lack of a `toToken` check allows the executor t
 
 ### Observed Pattern
 
-While the outer batch array is capped at `MAX_BATCH_SIZE`, the inner `MatchData[]` array within an `AtomicBatch` has no explicit size limit before it is passed to `batchMatchOrdersAtomic`. If an executor passes an extremely large inner array, the inner function will revert, but only after the EVM has deserialized the massive array in calldata, wasting gas. Additionally, combined matches > 256 will overflow the `failedMask` bitmask.
+While the outer batch array is capped at `MAX_BATCH_SIZE`, the inner `MatchData[]` array within an `AtomicBatch` has no explicit size limit before it is passed to `batchMatchOrdersAtomic`. If an executor passes an extremely large inner array, `batchMatchOrdersAtomic` will enforce its own `MAX_BATCH_SIZE` check and revert, but only after the EVM has deserialized the large calldata.
+
+The `failedMask` is a `uint256` bitmask. `batchMatchMixed` caps each category independently: 20 atomic batches + 20 single matches + 10 SOR intents = 50 items maximum. This fits well within 256 bits, so overflow is not possible under normal operation.
 
 ### Gas-Over-Verify Pattern
 
-This is an accepted tradeoff. The only entity that can submit these arrays is the permissioned executor. If the executor constructs an excessively large payload, the only consequence is the executor wasting their own gas or receiving a misleading `failedMask`. No user funds or protocol invariants are put at risk. Minimizing on-chain bounds checking where off-chain systems are well-behaved reduces gas costs for normal operations.
+This is an accepted tradeoff. The only entity that can submit these arrays is the permissioned executor. If the executor constructs an excessively large payload, the only consequence is the executor wasting their own gas. No user funds or protocol invariants are put at risk. The inner `batchMatchOrdersAtomic` enforces its own `MAX_BATCH_SIZE` guard, so the inner array is bounded at the callee level. Minimizing redundant on-chain bounds checking where off-chain systems are well-behaved reduces gas costs for normal operations.
 
 ---
 
@@ -210,13 +222,13 @@ Blacklisting prevents an account from expanding its vault position with external
 
 ---
 
-## 12. SeraSOR `_computeSORHash` Is Public
+## 12. SeraSOR `_computeIntentHash` Is Public
 
-**Location:** `SeraSOR._computeSORHash`
+**Location:** `SeraSOR._computeIntentHash`
 
 ### Observed Pattern
 
-The internal routing logic function `_computeSORHash` is marked as `internal pure`.
+The internal SOR hashing function `_computeIntentHash` is marked as `internal pure`.
 
 ### Why This Is Safe
 
@@ -317,3 +329,24 @@ By moving `initialDepositAmount` into the signed `Order` payload and `ORDER_TYPE
 - no new trust assumptions are introduced
 - the user regains cryptographic control over route funding source selection
 - the fix is minimal because it reuses the existing EIP-712 order signing flow instead of introducing a second signed parameter path
+
+---
+
+## 16. Same-Token Matches via SOR Path: Accepted With Executor Trust
+
+**Location:** `Sera.settleRoutedLeg()` vs `Sera.matchOrders()`
+
+### Observed Pattern
+
+The standalone `matchOrders()` path rejects same-token pairs (where `fromToken == toToken`) with a `SameTokenMatch` revert. However, the SOR path via `settleRoutedLeg()` only checks `TokenMismatch` (token symmetry between taker and maker), not `SameTokenMatch`. This means a same-token order (e.g. USDC→USDC) can be successfully executed through the SOR path.
+
+### Why This Is Not a Vulnerability
+
+1. **Executor-gated**: Only a permissioned `EXECUTOR_ROLE` can call `SeraSOR.executeIntent()`. A same-token match can only be constructed by the executor.
+2. **No fund extraction**: A same-token swap is an identity operation. User A sends X tokens and receives X tokens (minus fees). No value is created or stolen. The vault remains solvent.
+3. **Compromised executor mitigation**: If the executor is compromised, the first response is to call `pause()`, which halts both `matchOrders` and `settleRoutedLeg`.
+4. **Design tradeoff**: Adding the guard to `settleRoutedLeg` would marginally increase gas for every SOR settlement leg.
+
+### Mitigation
+
+The executor never constructs same-token routes. The `pause()` function provides the emergency stop mechanism if the executor key is compromised.

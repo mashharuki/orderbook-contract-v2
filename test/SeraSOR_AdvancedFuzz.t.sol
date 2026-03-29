@@ -71,13 +71,13 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         uint16 makerShare, 
         uint16 takerShare, 
         uint16 protocolShare,
-        uint16 feeBpsTaker,
-        uint16 feeBpsMaker
+        uint48 feeBpsTaker,
+        uint48 feeBpsMaker
     ) public {
         uint256 totalShare = uint256(makerShare) + uint256(takerShare) + uint256(protocolShare);
         vm.assume(totalShare > 0);
-        vm.assume(feeBpsTaker <= 10000);
-        vm.assume(feeBpsMaker <= 10000);
+        vm.assume(feeBpsTaker <= 100_000_000_000_000);
+        vm.assume(feeBpsMaker <= 100_000_000_000_000);
 
         vm.prank(owner);
         sera.setSlippageShares(uint64(makerShare), uint64(takerShare), uint64(protocolShare), uint64(totalShare));
@@ -269,7 +269,7 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         Order memory m1 = _makeOrder(maker1, address(bToken), address(aToken), f1, f1, 2);
         Order memory m2 = _makeOrder(maker2, address(bToken), address(aToken), f2, f2, 3);
         Order memory m3 = _makeOrder(maker3, address(bToken), address(aToken), f3, f3, 4);
-        m1.feeBps = 100; m2.feeBps = 200; m3.feeBps = 300;
+        m1.feeBps = 1_000_000_000_000; m2.feeBps = 2_000_000_000_000; m3.feeBps = 3_000_000_000_000;
 
         MatchData[] memory matches = new MatchData[](3);
         matches[0] = MatchData(tOrder, bytes(""), f1, m1, _signOrder(maker1PK, m1, sera), f1);
@@ -288,8 +288,8 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
     }
 
     // testFuzz_FeesAndSlippageIntersection
-    function testFuzz_FeesAndSlippageIntersection(uint16 tFee, uint16 mFee) public {
-        vm.assume(tFee <= 10000 && mFee <= 10000);
+    function testFuzz_FeesAndSlippageIntersection(uint48 tFee, uint48 mFee) public {
+        vm.assume(tFee <= 100_000_000_000_000 && mFee <= 100_000_000_000_000);
         
         vm.prank(owner);
         sera.setSlippageShares(0, 0, 10000, 10000); // 100% protocol spread
@@ -334,13 +334,13 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
     // True 3-leg Route Fuzzing
     function testFuzz_TrueThreeLegRoute(
         uint256 takerAmount,
-        uint16 feeTaker,
-        uint16 feeM1,
-        uint16 feeM2,
-        uint16 feeM3
+        uint48 feeTaker,
+        uint48 feeM1,
+        uint48 feeM2,
+        uint48 feeM3
     ) public {
         vm.assume(takerAmount > 100 ether && takerAmount < 10000 ether);
-        vm.assume(feeTaker <= 10000 && feeM1 <= 10000 && feeM2 <= 10000 && feeM3 <= 10000);
+        vm.assume(feeTaker <= 100_000_000_000_000 && feeM1 <= 100_000_000_000_000 && feeM2 <= 100_000_000_000_000 && feeM3 <= 100_000_000_000_000);
 
         MockStableCoin dToken = new MockStableCoin("DTK");
         vm.prank(owner);
@@ -519,10 +519,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
     /// @notice ERC-20 totalSupply must not change through any settlement path
     function testFuzz_TokenConservation(
         uint256 takerAmount,
-        uint16 fee
+        uint48 fee
     ) public {
         vm.assume(takerAmount > 1000 && takerAmount < 1000000 ether);
-        vm.assume(fee <= 10000);
+        vm.assume(fee <= 100_000_000_000_000);
 
         _mintAndDeposit(taker, address(aToken), takerAmount, sera);
         _mintAndDeposit(maker1, address(bToken), takerAmount, sera);
@@ -641,11 +641,11 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
     /// @notice For any shares/fees combo: vault remains solvent, no dust, supply conserved
     function testFuzz_FullDistributionInvariant(
         uint16 mShare, uint16 tShare, uint16 pShare,
-        uint16 tFee, uint16 mFee
+        uint48 tFee, uint48 mFee
     ) public {
         uint256 totShare = uint256(mShare) + uint256(tShare) + uint256(pShare);
         vm.assume(totShare > 0 && totShare <= 30000);
-        vm.assume(tFee <= 10000 && mFee <= 10000);
+        vm.assume(tFee <= 100_000_000_000_000 && mFee <= 100_000_000_000_000);
 
         vm.prank(owner);
         sera.setSlippageShares(mShare, tShare, pShare, uint64(totShare));

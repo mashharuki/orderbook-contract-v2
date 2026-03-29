@@ -394,25 +394,25 @@ contract SeraSOR_CoverageGaps is TestHelper {
         // Leg 0: 1000 A -> B (hold). 5% taker fee.
         // Taker: sell up to 1000 A, want at least 100 B.
         // Maker: sell 500 B, want at least 1 A (very cheap ask).
-        Order memory t0 = _oFull(taker, address(A), address(B), 1000 ether, 100 ether, 30, 500, address(sera));
+        Order memory t0 = _oFull(taker, address(A), address(B), 1000 ether, 100 ether, 30, 5_000_000_000_000, address(sera));
         Order memory mk0 = _oFull(m1, address(B), address(A), 500 ether, 1 ether, 31, 0, m1);
 
         // Leg 1: 1000 A -> C (hold). 3% taker fee.
         // Taker: sell up to 1000 A, want at least 100 C.
         // Maker: sell 400 C, want at least 1 A.
-        Order memory t1 = _oFull(taker, address(A), address(C), 1000 ether, 100 ether, 32, 300, address(sera));
+        Order memory t1 = _oFull(taker, address(A), address(C), 1000 ether, 100 ether, 32, 3_000_000_000_000, address(sera));
         Order memory mk1 = _oFull(m2, address(C), address(A), 400 ether, 1 ether, 33, 0, m2);
 
         // Leg 2: sentinel B -> D (terminal). 2% taker fee.
         // Taker: sell up to 500 B, want at least 10 D.
         // Maker: sell 200 D, want at least 1 B.
-        Order memory t2 = _oFull(taker, address(B), address(D), 500 ether, 10 ether, 34, 200, taker);
+        Order memory t2 = _oFull(taker, address(B), address(D), 500 ether, 10 ether, 34, 2_000_000_000_000, taker);
         Order memory mk2 = _oFull(m3, address(D), address(B), 200 ether, 1 ether, 35, 0, m3);
 
         // Leg 3: sentinel C -> D (terminal). 4% taker fee.
         // Taker: sell up to 400 C, want at least 10 D.
         // Maker: sell 160 D, want at least 1 C.
-        Order memory t3 = _oFull(taker, address(C), address(D), 400 ether, 10 ether, 36, 400, taker);
+        Order memory t3 = _oFull(taker, address(C), address(D), 400 ether, 10 ether, 36, 4_000_000_000_000, taker);
         Order memory mk3 = _oFull(m4, address(D), address(C), 160 ether, 1 ether, 37, 0, m4);
 
         MatchData[] memory matches = new MatchData[](4);
@@ -501,8 +501,8 @@ contract SeraSOR_CoverageGaps is TestHelper {
         // executionValue0_adj = 100 + 25 = 125 B.
         // Fee = 10% of 100 B (executionValue0 base) = 10 B.
         // Transient = 125 B - 10 B = 115 B.
-        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 100 ether, 90, 1000, address(sera));
-        Order memory mk1 = _oFull(m1, address(B), address(A), 200 ether, 1000 ether, 91, 1000, m1);
+        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 100 ether, 90, 10_000_000_000_000, address(sera));
+        Order memory mk1 = _oFull(m1, address(B), address(A), 200 ether, 1000 ether, 91, 10_000_000_000_000, m1);
 
         // Leg 2: Sentinel B -> C. Zero fee.
         // Transient is 115 B. Maker gives 230 C for 115 B.

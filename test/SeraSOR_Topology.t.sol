@@ -154,24 +154,24 @@ contract SeraSOR_Topology_Test is TestHelper {
         _mintAndDeposit(m5, address(F), 10000 ether, sera);
 
         // Leg 1: 1000 A → 600 B. 5% taker fee, 3% maker fee.
-        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 300 ether, 1, 500, address(sera));
-        Order memory mk1 = _oFull(m1, address(B), address(A), 600 ether, 500 ether, 2, 300, m1);
+        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 300 ether, 1, 5_000_000_000_000, address(sera));
+        Order memory mk1 = _oFull(m1, address(B), address(A), 600 ether, 500 ether, 2, 3_000_000_000_000, m1);
 
         // Leg 2: sentinel B → C. Generous fromAmount. Maker wants <= 300 B.
-        Order memory t2 = _oFull(taker, address(B), address(C), 600 ether, 100 ether, 3, 500, address(sera));
-        Order memory mk2 = _oFull(m2, address(C), address(B), 300 ether, 200 ether, 4, 200, m2);
+        Order memory t2 = _oFull(taker, address(B), address(C), 600 ether, 100 ether, 3, 5_000_000_000_000, address(sera));
+        Order memory mk2 = _oFull(m2, address(C), address(B), 300 ether, 200 ether, 4, 2_000_000_000_000, m2);
 
         // Leg 3: sentinel C → D. Maker wants <= 100 C.
-        Order memory t3 = _oFull(taker, address(C), address(D), 300 ether, 50 ether, 5, 500, address(sera));
-        Order memory mk3 = _oFull(m3, address(D), address(C), 200 ether, 80 ether, 6, 100, m3);
+        Order memory t3 = _oFull(taker, address(C), address(D), 300 ether, 50 ether, 5, 5_000_000_000_000, address(sera));
+        Order memory mk3 = _oFull(m3, address(D), address(C), 200 ether, 80 ether, 6, 1_000_000_000_000, m3);
 
         // Leg 4: sentinel D → E. Maker wants <= 50 D.
-        Order memory t4 = _oFull(taker, address(D), address(E), 200 ether, 20 ether, 7, 500, address(sera));
-        Order memory mk4 = _oFull(m4, address(E), address(D), 100 ether, 30 ether, 8, 400, m4);
+        Order memory t4 = _oFull(taker, address(D), address(E), 200 ether, 20 ether, 7, 5_000_000_000_000, address(sera));
+        Order memory mk4 = _oFull(m4, address(E), address(D), 100 ether, 30 ether, 8, 4_000_000_000_000, m4);
 
         // Leg 5: sentinel E → F (final output)
-        Order memory t5 = _oFull(taker, address(E), address(F), 100 ether, 10 ether, 9, 500, taker);
-        Order memory mk5 = _oFull(m5, address(F), address(E), 50 ether, 20 ether, 10, 200, m5);
+        Order memory t5 = _oFull(taker, address(E), address(F), 100 ether, 10 ether, 9, 5_000_000_000_000, taker);
+        Order memory mk5 = _oFull(m5, address(F), address(E), 50 ether, 20 ether, 10, 2_000_000_000_000, m5);
 
         MatchData[] memory matches = new MatchData[](5);
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk1, _signOrder(m1PK, mk1, sera), 600 ether);
@@ -208,20 +208,20 @@ contract SeraSOR_Topology_Test is TestHelper {
         _mintAndDeposit(m4, address(D), 5000 ether, sera);
 
         // Leg1: 500 A → B. 5% taker fee.
-        Order memory t1 = _oFull(taker, address(A), address(B), 500 ether, 100 ether, 1, 500, address(sera));
-        Order memory mk1 = _oFull(m1, address(B), address(A), 200 ether, 400 ether, 2, 300, m1);
+        Order memory t1 = _oFull(taker, address(A), address(B), 500 ether, 100 ether, 1, 5_000_000_000_000, address(sera));
+        Order memory mk1 = _oFull(m1, address(B), address(A), 200 ether, 400 ether, 2, 3_000_000_000_000, m1);
 
         // Leg2: 500 A → C. 3% taker fee.
-        Order memory t2 = _oFull(taker, address(A), address(C), 500 ether, 100 ether, 3, 300, address(sera));
-        Order memory mk2 = _oFull(m2, address(C), address(A), 200 ether, 400 ether, 4, 200, m2);
+        Order memory t2 = _oFull(taker, address(A), address(C), 500 ether, 100 ether, 3, 3_000_000_000_000, address(sera));
+        Order memory mk2 = _oFull(m2, address(C), address(A), 200 ether, 400 ether, 4, 2_000_000_000_000, m2);
 
         // Leg3: sentinel B → D. 2% taker fee.
-        Order memory t3 = _oFull(taker, address(B), address(D), 200 ether, 30 ether, 5, 200, taker);
-        Order memory mk3 = _oFull(m3, address(D), address(B), 100 ether, 100 ether, 6, 100, m3);
+        Order memory t3 = _oFull(taker, address(B), address(D), 200 ether, 30 ether, 5, 2_000_000_000_000, taker);
+        Order memory mk3 = _oFull(m3, address(D), address(B), 100 ether, 100 ether, 6, 1_000_000_000_000, m3);
 
         // Leg4: sentinel C → D. 4% taker fee.
-        Order memory t4 = _oFull(taker, address(C), address(D), 200 ether, 30 ether, 7, 400, taker);
-        Order memory mk4 = _oFull(m4, address(D), address(C), 100 ether, 100 ether, 8, 500, m4);
+        Order memory t4 = _oFull(taker, address(C), address(D), 200 ether, 30 ether, 7, 4_000_000_000_000, taker);
+        Order memory mk4 = _oFull(m4, address(D), address(C), 100 ether, 100 ether, 8, 5_000_000_000_000, m4);
 
         MatchData[] memory matches = new MatchData[](4);
         matches[0] = MatchData(t1, bytes(""), 500 ether, mk1, _signOrder(m1PK, mk1, sera), 200 ether);
@@ -333,14 +333,14 @@ contract SeraSOR_Topology_Test is TestHelper {
         Order memory t1 = Order({
             user: taker, fromToken: address(A), toToken: address(B),
             fromAmount: 1000 ether, toAmount: 200 ether, initialDepositAmount: 1000 ether,
-            feeBps: 500, recipient: address(sera),
+            feeBps: 5_000_000_000_000, recipient: address(sera),
             expiration: uint48(block.timestamp + 1 days), uuid: 1
         });
-        Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 800 ether, 2, 200, m1);
+        Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 800 ether, 2, 2_000_000_000_000, m1);
 
         // Leg 2: sentinel B → C. 3% fee.
-        Order memory t2 = _oFull(taker, address(B), address(C), 500 ether, 50 ether, 3, 300, taker);
-        Order memory mk2 = _oFull(m2, address(C), address(B), 200 ether, 200 ether, 4, 100, m2);
+        Order memory t2 = _oFull(taker, address(B), address(C), 500 ether, 50 ether, 3, 3_000_000_000_000, taker);
+        Order memory mk2 = _oFull(m2, address(C), address(B), 200 ether, 200 ether, 4, 1_000_000_000_000, m2);
 
         // Approve SOR to pull from taker wallet
         vm.prank(taker);
@@ -372,12 +372,12 @@ contract SeraSOR_Topology_Test is TestHelper {
         _mintAndDeposit(m2, address(C), 5000 ether, sera);
 
         // Leg 1: 50% taker fee, 50% maker fee, + 100% protocol spread
-        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 100 ether, 1, 5000, address(sera));
-        Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 800 ether, 2, 5000, m1);
+        Order memory t1 = _oFull(taker, address(A), address(B), 1000 ether, 100 ether, 1, 50_000_000_000_000, address(sera));
+        Order memory mk1 = _oFull(m1, address(B), address(A), 500 ether, 800 ether, 2, 50_000_000_000_000, m1);
 
         // Leg 2: sentinel, same fee structure
-        Order memory t2 = _oFull(taker, address(B), address(C), 500 ether, 10 ether, 3, 5000, taker);
-        Order memory mk2 = _oFull(m2, address(C), address(B), 200 ether, 50 ether, 4, 5000, m2);
+        Order memory t2 = _oFull(taker, address(B), address(C), 500 ether, 10 ether, 3, 50_000_000_000_000, taker);
+        Order memory mk2 = _oFull(m2, address(C), address(B), 200 ether, 50 ether, 4, 50_000_000_000_000, m2);
 
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk1, _signOrder(m1PK, mk1, sera), 500 ether);
@@ -542,16 +542,16 @@ contract SeraSOR_Topology_Test is TestHelper {
         Order memory mk1 = _oFull(m1, address(B), address(A), 200 ether, 400 ether, 2, 0, m1);
 
         // Leg2: A→C, 50% fee (expensive branch)
-        Order memory t2 = _oFull(taker, address(A), address(C), 500 ether, 50 ether, 3, 5000, address(sera));
-        Order memory mk2 = _oFull(m2, address(C), address(A), 200 ether, 400 ether, 4, 5000, m2);
+        Order memory t2 = _oFull(taker, address(A), address(C), 500 ether, 50 ether, 3, 50_000_000_000_000, address(sera));
+        Order memory mk2 = _oFull(m2, address(C), address(A), 200 ether, 400 ether, 4, 50_000_000_000_000, m2);
 
         // Leg3: sentinel B→D, 0% fee. Maker wants <= 50 B (taker-favorable)
         Order memory t3 = _oFull(taker, address(B), address(D), 200 ether, 20 ether, 5, 0, taker);
         Order memory mk3 = _oFull(m3, address(D), address(B), 100 ether, 50 ether, 6, 0, m3);
 
         // Leg4: sentinel C→D, 80% fee. Maker wants <= 50 C
-        Order memory t4 = _oFull(taker, address(C), address(D), 200 ether, 5 ether, 7, 8000, taker);
-        Order memory mk4 = _oFull(m4, address(D), address(C), 100 ether, 50 ether, 8, 8000, m4);
+        Order memory t4 = _oFull(taker, address(C), address(D), 200 ether, 5 ether, 7, 80_000_000_000_000, taker);
+        Order memory mk4 = _oFull(m4, address(D), address(C), 100 ether, 50 ether, 8, 80_000_000_000_000, m4);
 
         MatchData[] memory matches = new MatchData[](4);
         matches[0] = MatchData(t1, bytes(""), 500 ether, mk1, _signOrder(m1PK, mk1, sera), 200 ether);
@@ -726,24 +726,24 @@ contract SeraSOR_Topology_Test is TestHelper {
         // makerToAmt = 1 ether for all (guarantees cost check)
         uint256[4][19] memory L = [
             [uint256(10000 ether), 5000 ether, 5000 ether, 0],
-            [uint256(50000 ether), 5000 ether, 3000 ether, 300],
-            [uint256(50000 ether), 10000 ether, 4000 ether, 500],
+            [uint256(50000 ether), 5000 ether, 3000 ether, 3_000_000_000_000],
+            [uint256(50000 ether), 10000 ether, 4000 ether, 5_000_000_000_000],
             [uint256(50000 ether), 25000 ether, 1500 ether, 0],
-            [uint256(50000 ether), 5000 ether, 5000 ether, 800],
-            [uint256(50000 ether), 10000 ether, 2000 ether, 200],
+            [uint256(50000 ether), 5000 ether, 5000 ether, 8_000_000_000_000],
+            [uint256(50000 ether), 10000 ether, 2000 ether, 2_000_000_000_000],
             [uint256(50000 ether), 5000 ether, 3000 ether, 0],
-            [uint256(50000 ether), 25000 ether, 2000 ether, 500],
-            [uint256(50000 ether), 10000 ether, 4000 ether, 300],
+            [uint256(50000 ether), 25000 ether, 2000 ether, 5_000_000_000_000],
+            [uint256(50000 ether), 10000 ether, 4000 ether, 3_000_000_000_000],
             [uint256(50000 ether), 5000 ether, 1500 ether, 0],
-            [uint256(50000 ether), 10000 ether, 3000 ether, 700],
+            [uint256(50000 ether), 10000 ether, 3000 ether, 7_000_000_000_000],
             [uint256(50000 ether), 25000 ether, 2000 ether, 0],
-            [uint256(50000 ether), 5000 ether, 5000 ether, 500],
-            [uint256(50000 ether), 10000 ether, 2000 ether, 200],
+            [uint256(50000 ether), 5000 ether, 5000 ether, 5_000_000_000_000],
+            [uint256(50000 ether), 10000 ether, 2000 ether, 2_000_000_000_000],
             [uint256(50000 ether), 5000 ether, 3000 ether, 0],
-            [uint256(50000 ether), 10000 ether, 4000 ether, 800],
-            [uint256(50000 ether), 25000 ether, 2000 ether, 300],
+            [uint256(50000 ether), 10000 ether, 4000 ether, 8_000_000_000_000],
+            [uint256(50000 ether), 25000 ether, 2000 ether, 3_000_000_000_000],
             [uint256(50000 ether), 5000 ether, 3000 ether, 0],
-            [uint256(50000 ether), 10000 ether, 2000 ether, 500]
+            [uint256(50000 ether), 10000 ether, 2000 ether, 5_000_000_000_000]
         ];
         MatchData[] memory m = new MatchData[](19);
         for (uint256 i; i < 19; i++) {

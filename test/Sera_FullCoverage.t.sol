@@ -328,7 +328,7 @@ contract Sera_FullCoverage is TestHelper {
         _mintAndDeposit(user1, address(usdt), 1000 ether, sera);
         _mintAndDeposit(user2, address(sgd), 100 ether, sera);
 
-        Order memory o0 = Order(user1, uint48(block.timestamp + 1 days), 10001, user1, address(usdt), address(sgd), 1000 ether, 100 ether, 0, 1);
+        Order memory o0 = Order(user1, uint48(block.timestamp + 1 days), 100_000_000_000_001, user1, address(usdt), address(sgd), 1000 ether, 100 ether, 0, 1);
         Order memory o1 = Order(user2, uint48(block.timestamp + 1 days), 0, user2, address(sgd), address(usdt), 100 ether, 1000 ether, 0, 2);
 
         MatchData memory m = MatchData(o0, _signOrder(user1PK, o0, sera), 1000 ether, o1, _signOrder(user2PK, o1, sera), 100 ether);

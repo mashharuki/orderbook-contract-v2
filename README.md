@@ -20,7 +20,7 @@ This repository contains **Solidity + Foundry** based order book matching contra
   - **Delayed**: User-initiated via `emergencyWithdraw()`, 7200 blocks (~24h) delay with 14400 blocks (~48h) expiration
   - **Instant**: Dual-signature (`executeInstantWithdrawDualSig`) with user + executor EIP-712 signatures
 - ✅ **Smart Order Routing (SOR)**: Multi-leg atomic routing via `SeraSOR.executeIntent()` with SOR-based signing. The taker signs an `IntentParams` (SOR parameters) struct covering `(inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)`. The executor constructs optimal route legs freely. Features include transient balance optimization (via `uniqueTokenCount`), signed wallet funding via `initialDepositAmount`, enforced output destination via signed `recipient`, and strict `TransientBalanceNotZero` enforcement for intermediate balances.
-- ✅ **Dynamic Fee Structure**: Per-order configurable `feeBps` (uint48) + configurable slippage sharing via `SlippageShare` struct (maker/taker/protocol split)
+- ✅ **Dynamic Fee Structure**: Per-order configurable `feeBps` (uint48, denominator 1e14 for sub-basis-point precision) + configurable slippage sharing via `SlippageShare` struct (maker/taker/protocol split)
 - ✅ **Ghost Liquidity Prevention**: Vault balance checked on every match
 - ✅ **Frozen User Policy**: Compromised accounts can be frozen (stops trading/deposits) but CAN withdraw
 - ✅ **Partial Fills**: On-chain tracking of filled amounts for order hashes
@@ -72,6 +72,7 @@ orderbook-contract-v2/
 │   ├── SeraSOR_Settlement.t.sol     # Settlement optimization
 │   ├── SeraSOR_SettlementStress.t.sol # Settlement stress tests
 │   ├── SeraSOR_Positive_Slippage.t.sol # Positive slippage PoC
+│   ├── SeraBPS_Precision.t.sol    # BPS precision & overflow tests
 │   └── summary.md                  # Detailed test audit summary
 ├── script/
 │   ├── Deploy.s.sol          # Production deployment script

@@ -581,9 +581,9 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         // Leg 1: USDC → ETH (hold), taker fee 10%
         Order memory takerLeg1 = _makeOrder(taker, address(usdc), address(eth), 1000 ether, 10 ether, 1);
         takerLeg1.recipient = address(sera);
-        takerLeg1.feeBps = 1000; // 10%
+        takerLeg1.feeBps = 10_000_000_000_000; // 10%
         Order memory makerLeg1 = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 1000 ether, 2);
-        makerLeg1.feeBps = 1000; // 10%
+        makerLeg1.feeBps = 10_000_000_000_000; // 10%
 
         // Leg 2: ETH → BTC (deliver, sentinel)
         // The actual ETH received after fees in Leg 1 = 10 ETH base - taker fee (10% of 10 = 1) = 9 ETH
