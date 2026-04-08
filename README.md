@@ -12,29 +12,38 @@ This repository contains **Solidity + Foundry** based order book matching contra
 - **`Vault.sol`**: Asset custody with per-user balances, blacklist controls, and ledger transfers
 - **`interface/IVault.sol`**: Vault interface definition
 
+**Known Limitations:**
+- Fee-on-transfer (FoT) tokens are not supported. The Vault credits the requested amount directly and does not measure post-transfer balance deltas. Only standard ERC20 tokens should be whitelisted.
+- Rebasing / elastic supply tokens (e.g., stETH, AMPL) are not supported. The Vault tracks balances via a `trackedBalance` mapping that would diverge from the physical balance of rebasing tokens, leading to trapped yield or insolvency.
+
 **Key Features:**
 - ✅ **SOR-Based Matching**: Orders are signed off-chain and matched on-chain (gas efficient, no cancellation fees)
 - ✅ **Vault Custody**: Funds are locked in `Vault.sol` ensuring solvency before execution
-- ✅ **EIP-712 Signatures**: Secure typed data signing for orders and withdrawals
+- ✅ **EIP-712 Signatures**: Secure typed data signing for orders and withdrawals, with EIP-1271 support for smart contract wallets (Safe, Argent, ERC-4337 accounts)
 - ✅ **Dual-Authorization Withdrawals**:
   - **Delayed**: User-initiated via `emergencyWithdraw()`, 7200 blocks (~24h) delay with 14400 blocks (~48h) expiration
   - **Instant**: Dual-signature (`executeInstantWithdrawDualSig`) with user + executor EIP-712 signatures
-- ✅ **Smart Order Routing (SOR)**: Multi-leg atomic routing via `SeraSOR.executeIntent()` with SOR-based signing. The taker signs an `IntentParams` (SOR parameters) struct covering `(inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)`. The executor constructs optimal route legs freely. Features include transient balance optimization (via `uniqueTokenCount`), signed wallet funding via `initialDepositAmount`, enforced output destination via signed `recipient`, and strict `TransientBalanceNotZero` enforcement for intermediate balances.
-- ✅ **Dynamic Fee Structure**: Per-order configurable `feeBps` (uint48, denominator 1e14 for sub-basis-point precision) + configurable slippage sharing via `SlippageShare` struct (maker/taker/protocol split)
+- ✅ **Smart Order Routing (SOR)**: Multi-leg atomic routing via `SeraSOR.executeIntent()` with SOR-based signing. The taker signs an `IntentParams` (SOR parameters) struct covering `(taker, inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)`. The `taker` field cryptographically binds the signer's identity inside the EIP-712 struct, enabling EIP-1271 smart contract wallet support. The executor constructs optimal route legs freely. Features include transient balance optimization (via `uniqueTokenCount`), signed wallet funding via `initialDepositAmount`, enforced output destination via signed `recipient`, and strict `TransientBalanceNotZero` enforcement for intermediate balances.
+- ✅ **Dynamic Fee Structure**: Per-order configurable `feeBps` (uint48) with expanded `BPS_DENOMINATOR = 1e14` for sub-basis-point granularity (e.g. $0.01 fee on $1M orders) + configurable slippage sharing via `SlippageShare` struct (maker/taker/protocol split)
+- ✅ **Signature Caching**: First fill verifies the EIP-712 signature via `SignatureChecker` (supports both EOA `ecrecover` and EIP-1271 contract signatures); subsequent partial fills skip re-verification since the `orderHash` is immutable and already authenticated
+- ✅ **Transient Reentrancy Guard**: `ReentrancyGuardTransient` on all `Sera.sol` entry points — locks use transient storage (EIP-1153), lasting only for the cross-contract execution duration
 - ✅ **Ghost Liquidity Prevention**: Vault balance checked on every match
 - ✅ **Frozen User Policy**: Compromised accounts can be frozen (stops trading/deposits) but CAN withdraw
 - ✅ **Partial Fills**: On-chain tracking of filled amounts for order hashes
+- ✅ **Token Whitelist**: Governance-controlled whitelist with per-token minimum order amounts
 
 ---
 
 ## Modular Documentation Index
-For detailed documentation on integrations, architecture, and deployment, see our comprehensive guides in the `readme/` folder:
+For detailed documentation on integrations, architecture, and deployment, see our comprehensive guides in the `docs/` folder:
 
-1. **[Architecture Overview](readme/architecture.md)** — High-level integration diagrams for Web2/Web3 pairings, wrapper routing, and structural execution.
-2. **[Integration Guide](readme/integration_guide.md)** — Step-by-step documentation for API developers looking to craft EIP-712 deposits, orders, routes, and signature payloads. Includes full standard structures.
-3. **[Security Overview](readme/security.md)** — Documentation covering non-custodial extraction boundaries, blacklisting limitations, Reentrancy handling, and ghost liquidity.
-4. **[Deployment Guide](readme/deployment_guide.md)** — Standard operating procedures for testing locally and initializing live Web3 networks (testnet/mainnet).
-5. **[Archived Design Specs](readme/design/)** — Older architectural drafts related to gas optimizations, the SOR plan, and one-signature 7702 transactions without vault staging.
+1. **[Architecture Overview](docs/architecture.md)** — High-level integration diagrams for Web2/Web3 pairings, wrapper routing, and structural execution.
+2. **[Integration Guide](docs/integration_guide.md)** — Step-by-step documentation for API developers looking to craft EIP-712 deposits, orders, routes, and signature payloads. Includes full standard structures.
+3. **[Security Overview](docs/security.md)** — Documentation covering non-custodial extraction boundaries, blacklisting limitations, Reentrancy handling, and ghost liquidity.
+4. **[Deployment Guide](docs/deployment_guide.md)** — Standard operating procedures for testing locally and initializing live Web3 networks (testnet/mainnet).
+5. **[API Server Design](docs/api_server_design.md)** — Backend technical specification for API server developers (bilingual: Chinese).
+6. **[Audit FAQ](docs/audit_faq.md)** — Deliberate design choices and "gas-over-verify" patterns explained for security auditors.
+7. **[Gas Report](docs/design/gas_report.md)** — Architectural impact of transient matching and route caching.
 
 ---
 
@@ -69,21 +78,32 @@ orderbook-contract-v2/
 │   ├── SeraSOR_Precision.t.sol      # Precision & arithmetic
 │   ├── SeraSOR_AdvancedFuzz.t.sol   # Fuzz tests
 │   ├── SeraSOR_Topology.t.sol       # Extreme topologies
-│   ├── SeraSOR_Settlement.t.sol     # Settlement optimization
-│   ├── SeraSOR_SettlementStress.t.sol # Settlement stress tests
-│   ├── SeraSOR_Positive_Slippage.t.sol # Positive slippage PoC
-│   ├── SeraBPS_Precision.t.sol    # BPS precision & overflow tests
-│   └── summary.md                  # Detailed test audit summary
+│   ├── SeraSOR_Settlement.t.sol        # Settlement optimization
+│   ├── SeraSOR_SettlementStress.t.sol  # Settlement stress tests
+│   ├── SeraSOR_Positive_Slippage.t.sol # Positive slippage PoC (stub)
+│   ├── SeraSOR_Permit.t.sol            # EIP-2612 permit integration tests
+│   ├── SeraSOR_DeepAudit.t.sol         # Deep audit PoC validations
+│   ├── SeraSOR_CoverageGaps.t.sol      # Coverage gap tests (diamond, wallet funding)
+│   ├── SeraSOR_AttackerSteal.t.sol     # Output hijacking fix validation
+│   ├── SeraEIP1271.t.sol               # EIP-1271 smart contract wallet signature tests
+│   ├── Sera_FullCoverage.t.sol         # Full coverage suite (51 tests)
+│   ├── SeraBPS_Precision.t.sol         # BPS denominator precision & overflow tests
+│   └── summary.md                     # Detailed test audit summary
 ├── script/
-│   ├── Deploy.s.sol          # Production deployment script
-│   ├── DeployTestnet.s.sol   # Testnet deployment script (with mock tokens)
-│   └── DeploySepolia.s.sol   # Sepolia deployment script with verification
-├── readme/                   # Detailed modular documentation
+│   ├── Deploy.s.sol              # Production deployment script
+│   ├── DeployTestnet.s.sol       # Testnet deployment script (with mock tokens)
+│   ├── DeploySepolia.s.sol       # Sepolia deployment script with verification
+│   ├── DeployAll.s.sol           # Combined deployment script
+│   ├── DeployLocal.s.sol         # Local development deployment
+│   └── LiveSubgraphValidation.s.sol # Live subgraph validation script
+├── docs/                     # Detailed modular documentation
 │   ├── architecture.md       # Integration diagrams
 │   ├── integration_guide.md  # API Order flows
 │   ├── security.md           # Guard rails and Governance
 │   ├── deployment_guide.md   # Setup procedures
-│   └── design/               # Legacy point-in-time plans
+│   ├── api_server_design.md  # Backend technical specification (bilingual)
+│   ├── audit_faq.md          # Deliberate design choices for auditors
+│   └── design/gas_report.md  # Optimization tracking
 └── README.md                 # This file
 ```
 
@@ -106,6 +126,25 @@ Run all tests:
 forge test
 ```
 
+### Local Subgraph Testing (E2E)
+A fully automated local subgraph integration test suite is available in the `../sera-web3-layer-graph` repository. It spins up a local Graph Node, an Anvil chain, and automatically deploys these contracts to fully verify event indexing correctness.
+
+To run the local indexing test:
+```shell
+cd ../sera-web3-layer-graph
+make test
+```
+
+### Full Stack E2E (Relayer + Contracts + Subgraph)
+To test the full pipeline including the relayer submitting transactions, subgraph indexing events, and the relayer reading indexed data back:
+
+```shell
+cd ../web3-relayer
+make e2e
+```
+
+See [web3-relayer/README.md](../web3-relayer/README.md) for details.
+
 ### Coverage
 ```shell
 forge coverage
@@ -115,7 +154,7 @@ forge coverage
 
 ## Documentation
 
-All documentation and diagrams have been moved to the `readme/` folder. For integration guidance, architecture outlines, or API models, reference the Modular Documentation Index above.
+All documentation and diagrams have been moved to the `docs/` folder. For integration guidance, architecture outlines, or API models, reference the Modular Documentation Index above.
 
 ---
 
@@ -123,11 +162,11 @@ All documentation and diagrams have been moved to the `readme/` folder. For inte
 
 ### Architecture
 
-- **Solady Integration**: Replaced OpenZeppelin's `EIP712` and `ECDSA` with Solady's gas-optimized alternatives
-- **Order Struct Refactor**: `Order` now uses packed `uint48` for `expiration` and `feeBps`, includes `initialDepositAmount` for signed SOR funding control, and `uuid` for replay protection (removed `salt`/`createdAt`/`routeHash`)
+- **Solady Integration**: Uses Solady's gas-optimized `EIP712`. Signature validation uses OpenZeppelin's `SignatureChecker` for unified EOA + EIP-1271 smart contract wallet support
+- **Order Struct Refactor**: `Order` now uses packed `uint48` for `expiration` and `feeBps`, includes `initialDepositAmount` for signed SOR funding control, and `uuid` for replay protection (removed `salt`/`createdAt`/`routeHash`). `BPS_DENOMINATOR` expanded to `1e14` (from `10,000`) for sub-basis-point fee granularity while fitting within `uint48` storage.
 - **Slippage Sharing**: Replaced `slippageCaptureBps` with `SlippageShare` struct (`makerShareBps`, `takerShareBps`, `protocolShareBps`, `totalBps`) for configurable profit splits
 - **Withdrawal System**: Dual-path withdrawals with 7200-block delay (24h) + 14400-block expiration (48h) for emergency path, or instant dual-signature path
-- **SOR-Based Architecture**: The SOR uses a signed routing model — the taker signs an `IntentParams` (SOR parameters) struct `(inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)` once, and the executor freely constructs optimal route legs at execution time. The `recipient` and `initialDepositAmount` are cryptographically committed to prevent output hijacking and unauthorized wallet pulls. This fixes TOCTOU issues with the old `routeHash` route-binding model. Final-leg positive slippage follows the configured slippage split. Any leftover intermediate transient balances trigger a `TransientBalanceNotZero` revert, enforcing strict fund conservation.
+- **SOR-Based Architecture**: The SOR uses a signed routing model — the taker signs an `IntentParams` (SOR parameters) struct `(taker, inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)` once, and the executor freely constructs optimal route legs at execution time. The `taker`, `recipient`, and `initialDepositAmount` are cryptographically committed to prevent identity spoofing, output hijacking, and unauthorized wallet pulls. The `taker` field enables EIP-1271 smart contract wallet support by binding the signer's address into the signed struct (replacing the old `ecrecover`-derived identity model). This fixes TOCTOU issues with the old `routeHash` route-binding model. Final-leg positive slippage follows the configured slippage split. Any leftover intermediate transient balances trigger a `TransientBalanceNotZero` revert, enforcing strict fund conservation.
 
 ### Security
 

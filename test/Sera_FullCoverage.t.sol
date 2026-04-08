@@ -266,7 +266,7 @@ contract Sera_FullCoverage is TestHelper {
         MatchData memory m = MatchData(o0, badSig, 1000 ether, o1, _signOrder(user2PK, o1, sera), 100 ether);
 
         vm.prank(executor);
-        vm.expectRevert(Sera.InvalidSignatureLength.selector);
+        vm.expectRevert(Sera.InvalidSignature.selector);
         sera.matchOrders(m, type(uint256).max);
     }
 
@@ -775,7 +775,7 @@ contract Sera_FullCoverage is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.EmptyRoute.selector);
-        sor.executeIntent(matches, sig, IntentParams(address(usdt), address(sgd), 0, 0, user1, 0, 1, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(user1, address(usdt), address(sgd), 0, 0, user1, 0, 1, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
     }
 
     function test_sor_DeadlineExpired_Reverts() public {
@@ -792,7 +792,7 @@ contract Sera_FullCoverage is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(MatchExpired.selector);
-        sor.executeIntent(matches, sig, IntentParams(address(usdt), address(sgd), 0, 0, user1, 0, 1, uint48(block.timestamp - 1)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(user1, address(usdt), address(sgd), 0, 0, user1, 0, 1, uint48(block.timestamp - 1)), 3, 0, bytes(""));
     }
 
     // =========================================================================

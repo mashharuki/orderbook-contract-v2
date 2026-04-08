@@ -56,9 +56,10 @@ Important distinction:
 - intermediate surplus is either zero (ME calibrated) or returned to taker vault (safety net)
 
 ### SOR Hardening: Signed Recipient & Deposit Amount
-The SOR typed struct (`INTENT_TYPEHASH` — refers to SOR parameters in code) cryptographically commits to two critical fields:
-1. **`recipient`** — The address where the taker's output is delivered. Every terminal leg in the route must have its `order0.recipient` match the signed SOR `recipient`. This prevents an executor from redirecting output to an arbitrary address (output hijacking).
-2. **`initialDepositAmount`** — The exact amount to pull from the taker's wallet. The contract verifies `matches[0].order0.initialDepositAmount == intent.initialDepositAmount` (SOR parameters) and uses this as the wallet pull amount. A value of `0` means vault-only settlement. This prevents an executor from pulling more tokens from the taker's wallet than authorized.
+The SOR typed struct (`INTENT_TYPEHASH` — refers to SOR parameters in code) cryptographically commits to three critical fields:
+1. **`taker`** — The address of the signer (EOA or smart contract wallet). This binds the signer's identity into the EIP-712 struct, enabling EIP-1271 smart contract wallet support. The contract validates the signature against this address using `SignatureChecker.isValidSignatureNowCalldata()`, which supports both ECDSA (EOA) and ERC-1271 (contract wallet) signatures. This replaces the previous `ecrecover`-derived identity model where the taker address was implicitly recovered from the signature.
+2. **`recipient`** — The address where the taker's output is delivered. Every terminal leg in the route must have its `order0.recipient` match the signed SOR `recipient`. This prevents an executor from redirecting output to an arbitrary address (output hijacking).
+3. **`initialDepositAmount`** — The exact amount to pull from the taker's wallet. The contract verifies `matches[0].order0.initialDepositAmount == intent.initialDepositAmount` (SOR parameters) and uses this as the wallet pull amount. A value of `0` means vault-only settlement. This prevents an executor from pulling more tokens from the taker's wallet than authorized.
 
 Both fields are bundled into the `IntentParams` struct (SOR parameters — see `SeraLib.sol`) and passed as a single calldata parameter to `executeIntent` (SOR execution entry point), reducing stack depth and improving readability.
 

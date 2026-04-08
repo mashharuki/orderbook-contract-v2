@@ -403,6 +403,7 @@ contract SeraBatcherTest is TestHelper {
         });
 
         IntentParams memory intent = IntentParams({
+            taker: taker,
             inputToken: address(usdt),
             outputToken: address(sgd),
             maxInputAmount: takerInputAmount,
@@ -414,7 +415,7 @@ contract SeraBatcherTest is TestHelper {
         });
 
         bytes memory intentSig = _signIntent(
-            takerPK, intent.inputToken, intent.outputToken,
+            takerPK, taker, intent.inputToken, intent.outputToken,
             intent.maxInputAmount, intent.minOutputAmount,
             intent.recipient, intent.initialDepositAmount,
             intent.uuid, intent.deadline, sera
@@ -448,6 +449,7 @@ contract SeraBatcherTest is TestHelper {
         sorMatches[0] = _makePair(100 ether, 10 ether, 9101, 9102);
 
         IntentParams memory intent = IntentParams({
+            taker: maker1,
             inputToken: address(usdt),
             outputToken: address(sgd),
             maxInputAmount: 100 ether,

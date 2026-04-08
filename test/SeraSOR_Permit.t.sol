@@ -120,7 +120,7 @@ contract SeraSOR_PermitTests is TestHelper {
 
         // Sign SOR intent
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 100, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 100, uint48(block.timestamp + 1 days), _sera()
         );
 
         // Sign EIP-2612 permit (spender = SeraSOR)
@@ -128,7 +128,7 @@ contract SeraSOR_PermitTests is TestHelper {
 
         // Execute
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 100, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 100, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
 
         // Verify: taker received ETH in wallet
         assertEq(eth.balanceOf(taker), 10 ether, "Taker should receive 10 ETH");
@@ -145,7 +145,7 @@ contract SeraSOR_PermitTests is TestHelper {
         (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 200, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 200, uint48(block.timestamp + 1 days), _sera()
         );
 
         // Generate standard permit, then compact to 64-byte EIP-2098
@@ -164,7 +164,7 @@ contract SeraSOR_PermitTests is TestHelper {
         assertEq(compactSig.length, 64, "Compact sig must be 64 bytes");
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 200, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, compactSig);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 200, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, compactSig);
 
         assertEq(eth.balanceOf(taker), 10 ether, "Taker should receive 10 ETH via compact permit");
         assertEq(usdc.balanceOf(taker), 0, "All USDC spent");
@@ -179,7 +179,7 @@ contract SeraSOR_PermitTests is TestHelper {
         (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 300, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 300, uint48(block.timestamp + 1 days), _sera()
         );
 
         bytes memory permitSig = _signPermit(takerPK, address(usdc), address(sor), 1000 ether, block.timestamp + 1 days);
@@ -200,7 +200,7 @@ contract SeraSOR_PermitTests is TestHelper {
 
         // Now executor calls executeSorWithPermit — permit will fail but allowance exists
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 300, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 300, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
 
         // Should succeed regardless of front-run
         assertEq(eth.balanceOf(taker), 10 ether, "Swap should succeed despite front-run");
@@ -219,12 +219,12 @@ contract SeraSOR_PermitTests is TestHelper {
         (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 400, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 400, uint48(block.timestamp + 1 days), _sera()
         );
 
         // Pass any bytes as permit sig — it should never be decoded
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 400, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 400, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
 
         assertEq(eth.balanceOf(taker), 10 ether, "Swap succeeds with pre-approval");
     }
@@ -267,12 +267,12 @@ contract SeraSOR_PermitTests is TestHelper {
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days), _sera()
         );
 
         // Call executeSorWithPermit with empty permit — should work like executeIntent
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
 
         assertEq(eth.balanceOf(taker), 10 ether, "Vault-only flow should work with empty permit");
     }
@@ -286,7 +286,7 @@ contract SeraSOR_PermitTests is TestHelper {
         (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 600, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 600, uint48(block.timestamp + 1 days), _sera()
         );
 
         // 63-byte sig (invalid length)
@@ -294,7 +294,7 @@ contract SeraSOR_PermitTests is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(Sera.InvalidSignatureLength.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 600, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, badSig);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 600, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, badSig);
     }
 
     // =========================================================================
@@ -306,14 +306,14 @@ contract SeraSOR_PermitTests is TestHelper {
         (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 700, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 700, uint48(block.timestamp + 1 days), _sera()
         );
         bytes memory permitSig = _signPermit(takerPK, address(usdc), address(sor), 1000 ether, block.timestamp + 1 days);
 
         // Random user tries to call
         vm.prank(taker);
         vm.expectRevert();
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 700, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 700, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
     }
 
     // =========================================================================
@@ -326,12 +326,12 @@ contract SeraSOR_PermitTests is TestHelper {
             (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
             bytes memory sorSig = _signIntent(
-                takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days), _sera()
+                takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days), _sera()
             );
             bytes memory permitSig = _signPermit(takerPK, address(usdc), address(sor), 1000 ether, block.timestamp + 1 days);
 
             vm.prank(executor);
-            sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
+            sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
         }
 
         // Fund maker again and try replay with same uuid
@@ -341,13 +341,13 @@ contract SeraSOR_PermitTests is TestHelper {
             (MatchData[] memory matches2, ) = _buildSingleLegSwap(1000 ether, 10 ether, 3, 4);
 
             bytes memory sorSig2 = _signIntent(
-                takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days), _sera() // same uuid = 800
+                takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days), _sera() // same uuid = 800
             );
             bytes memory permitSig2 = _signPermit(takerPK, address(usdc), address(sor), 1000 ether, block.timestamp + 1 days);
 
             vm.prank(executor);
-            vm.expectRevert(SeraSOR.IntentAlreadyUsed.selector);
-            sor.executeIntent(matches2, sorSig2, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig2);
+            vm.expectRevert(Sera.UuidAlreadyUsed.selector);
+            sor.executeIntent(matches2, sorSig2, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig2);
         }
     }
 
@@ -390,12 +390,12 @@ contract SeraSOR_PermitTests is TestHelper {
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 500 ether, 900, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 500 ether, 900, uint48(block.timestamp + 1 days), _sera()
         );
         bytes memory permitSig = _signPermit(takerPK, address(usdc), address(sor), 500 ether, block.timestamp + 1 days);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 500 ether, 900, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 500 ether, 900, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig);
 
         assertEq(eth.balanceOf(taker), 10 ether, "Taker receives 10 ETH");
         assertEq(usdc.balanceOf(taker), 0, "All wallet USDC spent");
@@ -415,7 +415,7 @@ contract SeraSOR_PermitTests is TestHelper {
         (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 1000, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 1000, uint48(block.timestamp + 1 days), _sera()
         );
 
         // Sign permit with already-expired deadline
@@ -423,7 +423,7 @@ contract SeraSOR_PermitTests is TestHelper {
 
         // Should succeed because allowance is already sufficient (permit skipped entirely)
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 1000, uint48(block.timestamp + 1 days)), 3, block.timestamp - 1, expiredPermit);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 1000, uint48(block.timestamp + 1 days)), 3, block.timestamp - 1, expiredPermit);
 
         assertEq(eth.balanceOf(taker), 10 ether, "Swap succeeds with expired permit + existing allowance");
     }
@@ -437,7 +437,7 @@ contract SeraSOR_PermitTests is TestHelper {
         (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 1100, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 1100, uint48(block.timestamp + 1 days), _sera()
         );
 
         // Expired permit, no existing allowance
@@ -446,7 +446,7 @@ contract SeraSOR_PermitTests is TestHelper {
         // Should revert at safeTransferFrom because permit failed and no allowance
         vm.prank(executor);
         vm.expectRevert(); // ERC20InsufficientAllowance
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 1100, uint48(block.timestamp + 1 days)), 3, block.timestamp - 1, expiredPermit);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 1100, uint48(block.timestamp + 1 days)), 3, block.timestamp - 1, expiredPermit);
     }
 
     // =========================================================================
@@ -458,7 +458,7 @@ contract SeraSOR_PermitTests is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.EmptyRoute.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, 1200, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, 1200, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
     }
 
     // =========================================================================
@@ -470,12 +470,12 @@ contract SeraSOR_PermitTests is TestHelper {
         (MatchData[] memory matches, ) = _buildSingleLegSwap(1000 ether, 10 ether, 1, 2);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 1000 ether, 10 ether, taker, 0, 1300, uint48(block.timestamp - 1), _sera()
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 0, 1300, uint48(block.timestamp - 1), _sera()
         );
         bytes memory permitSig = _signPermit(takerPK, address(usdc), address(sor), 1000 ether, block.timestamp + 1 days);
 
         vm.prank(executor);
         vm.expectRevert(MatchExpired.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 0, 1300, uint48(block.timestamp - 1)), 3, block.timestamp + 1 days, permitSig);
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 0, 1300, uint48(block.timestamp - 1)), 3, block.timestamp + 1 days, permitSig);
     }
 }
