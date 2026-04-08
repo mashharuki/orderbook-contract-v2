@@ -346,7 +346,7 @@ contract SeraSOR_PermitTests is TestHelper {
             bytes memory permitSig2 = _signPermit(takerPK, address(usdc), address(sor), 1000 ether, block.timestamp + 1 days);
 
             vm.prank(executor);
-            vm.expectRevert(SeraSOR.IntentAlreadyUsed.selector);
+            vm.expectRevert(Sera.UuidAlreadyUsed.selector);
             sor.executeIntent(matches2, sorSig2, IntentParams(address(usdc), address(eth), 1000 ether, 10 ether, taker, 1000 ether, 800, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, permitSig2);
         }
     }

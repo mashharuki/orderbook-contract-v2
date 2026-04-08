@@ -31,7 +31,7 @@ contract SeraSOR is SeraBase {
     error TransientBalanceNotZero(address token, uint256 amount);
     error InsufficientOutput();
     error ExcessiveInput();
-    error IntentAlreadyUsed(); // NOTE: Refers to SOR execution replay protection
+
 
     // ============ Events ============
     event IntentMatched(bytes32 indexed intentHash, address indexed taker, uint256 legCount); // NOTE: 'intent' refers to SOR execution
@@ -39,10 +39,6 @@ contract SeraSOR is SeraBase {
 
     /// @notice Upper bound to protect against pathological gas usage
     uint256 public constant MAX_ROUTE_LEGS = 20;
-
-    /// @notice Tracks used SOR UUIDs per user for replay protection
-    /// @dev Named 'isIntentUuidUsed' for legacy reasons — refers to SOR execution replay protection.
-    mapping(address => mapping(uint256 => bool)) public isIntentUuidUsed;
 
     constructor(address _sera) SeraBase(_sera) {}
 
@@ -174,9 +170,8 @@ contract SeraSOR is SeraBase {
         (uint8 v, bytes32 r, bytes32 s) = ECDSA.parseCalldata(signature);
         takerUser = ECDSA.recover(digest, v, r, s);
 
-        // Per-user replay protection: each uuid can only execute once per user
-        if (isIntentUuidUsed[takerUser][p.uuid]) revert IntentAlreadyUsed();
-        isIntentUuidUsed[takerUser][p.uuid] = true;
+        // Per-user replay protection: delegated to Sera so all routers share one registry (SFO-17)
+        sera.consumeIntentUuid(takerUser, p.uuid);
     }
 
     function _consumeTransientBalance(address[] memory tokens, uint256[] memory amounts, uint256 tableSize, address token, uint256 requested) internal pure returns (uint256 effectiveAmount, uint256 remaining) {

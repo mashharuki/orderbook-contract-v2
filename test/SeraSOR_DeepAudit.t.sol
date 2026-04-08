@@ -371,7 +371,7 @@ contract SeraSOR_DeepAudit is TestHelper {
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
 
         vm.prank(executor);
-        vm.expectRevert(SeraSOR.IntentAlreadyUsed.selector);
+        vm.expectRevert(Sera.UuidAlreadyUsed.selector);
         sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
     }
 

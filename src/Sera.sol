@@ -77,6 +77,10 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /// @dev Cannot use hash to protect against uuid replay attacks. Named 'isUuidExecuted' — refers to SOR withdrawal execution.
     mapping(address => mapping(uint256 => bool)) public isUuidExecuted;
 
+    /// @notice SOR intent replay protection, centralized in Sera so all routers share one registry
+    /// @dev Moved from SeraSOR to prevent cross-router replay when multiple routers share the same Sera instance (SFO-17).
+    mapping(address => mapping(uint256 => bool)) public isIntentUuidUsed;
+
     bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
 
     /// @notice Withdrawal request tracking - stores block and amount per token per user
@@ -447,6 +451,16 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
         return _domainSeparator();
+    }
+
+    // ============ SOR Intent Replay Protection (called by SeraSOR) ============
+
+    /// @notice Mark an intent UUID as consumed. Only callable by the trusted router.
+    /// @dev Centralizes replay protection in Sera so multiple router deployments cannot replay the same intent (SFO-17).
+    function consumeIntentUuid(address user, uint256 uuid) external {
+        if (msg.sender != trustedRouter) revert RouterNotTrusted();
+        if (isIntentUuidUsed[user][uuid]) revert UuidAlreadyUsed();
+        isIntentUuidUsed[user][uuid] = true;
     }
 
     // ============ Routed Settlement (called by SeraSOR) ============
