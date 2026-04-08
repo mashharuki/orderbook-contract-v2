@@ -239,6 +239,7 @@ contract SeraSOR is SeraBase {
                 s := calldataload(add(signature.offset, 0x20))
                 v := byte(0, calldataload(add(signature.offset, 0x40)))
             }
+            if (v < 27) v += 27;
         } else if (signature.length == 64) {
             assembly {
                 let vs := calldataload(add(signature.offset, 0x20))
