@@ -117,9 +117,9 @@ contract SeraSOR_Topology_Test is TestHelper {
         address _in = matches[0].order0.fromToken;
         address _out = matches[matches.length - 1].order0.toToken;
         uint48 _dl = uint48(block.timestamp + 1 days);
-        bytes memory sig = _signIntent(takerPK, _in, _out, 0, 0, _r, _d, nonce, _dl, sera);
+        bytes memory sig = _signIntent(takerPK, taker, _in, _out, 0, 0, _r, _d, nonce, _dl, sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(_in, _out, 0, 0, _r, _d, nonce, _dl), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, _in, _out, 0, 0, _r, _d, nonce, _dl), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     function _assertNoDust(address token) internal view {
@@ -277,10 +277,10 @@ contract SeraSOR_Topology_Test is TestHelper {
 
         // Intent signed for output token E — branches outputting C and D should revert
         uint256 nonce = _execNonce++;
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, nonce, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, nonce, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InvalidRoute.selector);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, nonce, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, nonce, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -589,10 +589,10 @@ contract SeraSOR_Topology_Test is TestHelper {
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, mk2, _signOrder(m2PK, mk2, sera), 200 ether);
 
         // Sign with tight guards: maxInput=1000, minOutput=50
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 50 ether, taker, 0, 2000, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 50 ether, taker, 0, 2000, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 50 ether, taker, 0, 2000, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 50 ether, taker, 0, 2000, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertGt(C.balanceOf(taker), 50 ether, "Taker received C above minOutput");
         _assertNoDust(address(A)); _assertNoDust(address(B)); _assertNoDust(address(C));
@@ -614,11 +614,11 @@ contract SeraSOR_Topology_Test is TestHelper {
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, mk2, _signOrder(m2PK, mk2, sera), 200 ether);
 
         // Sign with impossibly high minOutput
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 999999 ether, taker, 0, 2001, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 999999 ether, taker, 0, 2001, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InsufficientOutput.selector);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 999999 ether, taker, 0, 2001, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 999999 ether, taker, 0, 2001, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ════════════════════════════════════════════════════════════════════════

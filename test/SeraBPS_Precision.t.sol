@@ -196,14 +196,14 @@ contract SeraBPS_Precision_Test is TestHelper {
             makerOrder, _signOrder(makerPK, makerOrder, sera), orderAmount
         );
         bytes memory sig = _signIntent(
-            takerPK, address(USDC), address(ETH), 0, 0, taker, 0,
+            takerPK, taker, address(USDC), address(ETH), 0, 0, taker, 0,
             block.timestamp, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
         sor.executeIntent(
             matches, sig,
-            IntentParams(address(USDC), address(ETH), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(USDC), address(ETH), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
             uint8(3), 0, bytes("")
         );
 

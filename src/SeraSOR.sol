@@ -2,7 +2,7 @@
 // SeraSOR: Smart Order Router for multi-leg atomic route matching with transient balance optimization.
 pragma solidity 0.8.24;
 
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
@@ -157,7 +157,7 @@ contract SeraSOR is SeraBase {
      * @dev Named '_computeIntentHash' for legacy reasons — refers to SOR hash computation.
      */
     function _computeIntentHash(IntentParams calldata p) internal pure returns (bytes32) {
-        return keccak256(abi.encode(INTENT_TYPEHASH, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline));
+        return keccak256(abi.encode(INTENT_TYPEHASH, p.taker, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline));
     }
 
     /**
@@ -165,10 +165,12 @@ contract SeraSOR is SeraBase {
      * @dev Named '_validateAndConsumeIntent' for legacy reasons — refers to SOR validation.
      */
     function _validateAndConsumeIntent(bytes calldata signature, IntentParams calldata p) internal returns (address takerUser) {
-        // Validate EIP-712 signature
-        bytes32 digest = sera.getIntentDigest(p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline);
-        (uint8 v, bytes32 r, bytes32 s) = ECDSA.parseCalldata(signature);
-        takerUser = ECDSA.recover(digest, v, r, s);
+        takerUser = p.taker;
+        // Validate EIP-712 signature (supports both EOA and ERC-1271 smart contract wallets)
+        bytes32 digest = sera.getIntentDigest(p.taker, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline);
+        if (!SignatureChecker.isValidSignatureNowCalldata(takerUser, digest, signature)) {
+            revert Sera.InvalidSignature();
+        }
 
         // Per-user replay protection: delegated to Sera so all routers share one registry (SFO-17)
         sera.consumeIntentUuid(takerUser, p.uuid);

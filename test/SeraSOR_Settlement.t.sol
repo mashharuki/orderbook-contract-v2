@@ -81,9 +81,9 @@ contract SeraSOR_Settlement_Test is TestHelper {
         address _in = matches[0].order0.fromToken;
         address _out = matches[matches.length - 1].order0.toToken;
         uint48 _dl = uint48(block.timestamp + 1 days);
-        bytes memory sig = _signIntent(takerPK, _in, _out, 0, 0, _r, _d, nonce, _dl, sera);
+        bytes memory sig = _signIntent(takerPK, taker, _in, _out, 0, 0, _r, _d, nonce, _dl, sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(_in, _out, 0, 0, _r, _d, nonce, _dl), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, _in, _out, 0, 0, _r, _d, nonce, _dl), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     function _o(address user, address from, address to, uint256 fromAmt, uint256 toAmt, uint256 uuid)
@@ -555,11 +555,11 @@ contract SeraSOR_Settlement_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), 100 ether, mk1, _signOrder(m1PK, mk1, sera), 80 ether);
         
         uint256 nonce = _execNonce++;
-        bytes memory sig = _signIntent(takerPK, address(A), address(B), 100 ether, 80 ether, taker, 40 ether, nonce, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, address(A), address(B), 100 ether, 80 ether, taker, 40 ether, nonce, uint48(block.timestamp + 1 days), sera);
         
         // Execute the SOR
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(address(A), address(B), 100 ether, 80 ether, taker, 40 ether, nonce, uint48(block.timestamp + 1 days)), uint8(3), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, address(A), address(B), 100 ether, 80 ether, taker, 40 ether, nonce, uint48(block.timestamp + 1 days)), uint8(3), 0, bytes(""));
         
         // Verify Fix:
         assertEq(A.balanceOf(taker), 0, "Wallet completely pulled");

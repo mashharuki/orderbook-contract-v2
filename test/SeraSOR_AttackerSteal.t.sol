@@ -94,6 +94,7 @@ contract SeraSOR_AttackerStealTest is TestHelper {
         uint256 nonce = 77;
         bytes memory intentSig = _signIntent(
             takerPK,
+            taker,
             address(usdc),
             address(eth),
             1000 ether,
@@ -106,6 +107,7 @@ contract SeraSOR_AttackerStealTest is TestHelper {
         );
 
         IntentParams memory intent = IntentParams({
+            taker: taker,
             inputToken: address(usdc),
             outputToken: address(eth),
             maxInputAmount: 1000 ether,
@@ -170,6 +172,7 @@ contract SeraSOR_AttackerStealTest is TestHelper {
         // But the executor forged the leg's recipient to address(sera)
         bytes memory intentSig = _signIntent(
             takerPK,
+            taker,
             address(usdc), address(eth),
             1000 ether, 0,
             taker, 0,       // signed recipient = taker
@@ -178,6 +181,7 @@ contract SeraSOR_AttackerStealTest is TestHelper {
         );
 
         IntentParams memory intent = IntentParams({
+            taker: taker,
             inputToken: address(usdc),
             outputToken: address(eth),
             maxInputAmount: 1000 ether,
