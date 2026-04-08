@@ -477,6 +477,10 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         // Token symmetry (checked before expensive signature validation)
         if (_match.order0.fromToken != _match.order1.toToken || _match.order1.fromToken != _match.order0.toToken) revert TokenMismatch();
 
+        // SFO-05: Same guards as matchOrders — reject same-token legs and self-matches
+        if (_match.order0.fromToken == _match.order0.toToken) revert SameTokenMatch();
+        if (takerHash == makerHash) revert SelfMatch();
+
         // Maker: full validation (sig + routeHash must be 0)
         _validateMakerOrder(_match.order1, makerHash, _match.signature1, _match.matchAmount1);
 
