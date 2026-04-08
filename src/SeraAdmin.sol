@@ -27,7 +27,7 @@ abstract contract SeraAdmin is AccessControl, Pausable {
     // ============ Admin State ============
     /// @notice Vault custody contract used for deposits and settlement
 
-    Vault public vault;
+    Vault public immutable vault;
     /// @notice Treasury address that receives protocol fees/spread
     address public treasury;
 
