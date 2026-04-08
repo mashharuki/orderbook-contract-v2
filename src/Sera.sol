@@ -68,7 +68,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /// @notice Maximum blocks a delayed withdrawal remains valid after the requestBlock (48hrs)
     uint32 public constant WITHDRAW_EXPIRATION_BLOCKS = 14400;
 
-    /// @notice Maximum order expiration time (1 year)
+    /// @notice Maximum allowed remaining lifetime at first execution (1 year from block.timestamp, not from signing)
     uint256 public constant MAX_EXPIRATION = 365 days;
 
     /// @notice Track filled amount for order hashes to support partial fills
@@ -392,6 +392,9 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         // First time validations, skipped for subsequent fills to save gas
         if (filled == 0) {
             if (order.fromAmount == 0 || order.toAmount == 0) revert InvalidAmount();
+            // Caps remaining lifetime at execution, not total lifetime since signing.
+            // A signature with a distant expiration may initially fail this check but become
+            // acceptable once block.timestamp advances close enough — this is by design.
             if (order.expiration > block.timestamp + MAX_EXPIRATION) revert OrderExpirationTooLong();
             if (order.feeBps > BPS_DENOMINATOR) revert InvalidFee(); // Not more than 100% fee
 
