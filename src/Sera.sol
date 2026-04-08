@@ -283,6 +283,13 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /**
      * @notice Core order matching execution with price validation, fee capture, and settlement.
      * @dev Inlined from former _collectAndDistribute to save one internal call frame (~200 gas).
+     *
+     *      Spread allocation note: when makerShareBps != takerShareBps, the surplus split depends
+     *      on which order the executor places in the order0 (taker-share) vs order1 (maker-share) slot.
+     *      Both users are guaranteed at least their signed limit price regardless of ordering.
+     *      The spread above those limits is surplus, and its allocation is an EXECUTOR_ROLE operational
+     *      decision — the same trusted role that selects which orders to match and at what amounts.
+     *      For routed legs (settleRoutedLeg), the taker/maker distinction is structurally unambiguous.
      */
     function _executeMatch(MatchData calldata _match, bytes32 orderHash0, bytes32 orderHash1) internal {
         // Calculate the execution values for both orders
@@ -312,7 +319,11 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         bool order1FullyFilled;
     }
 
-    /// @notice Compute fees, spreads, update filled amounts, and return settlement results
+    /// @notice Compute fees, spreads, update filled amounts, and return settlement results.
+    /// @dev Spread is divided into protocol, maker (order1), and taker (order0) shares.
+    ///      In matchOrders, both sides are limit orders with no intrinsic role — the executor's
+    ///      input ordering determines who receives which share. This is by design: the executor
+    ///      is a trusted role. In settleRoutedLeg, order0 is always the SOR taker.
     function _calculateSettlement(MatchData calldata _match, uint256 executionValue0, uint256 executionValue1, uint256 effectiveAmount0, uint256 effectiveAmount1, bytes32 orderHash0, bytes32 orderHash1) internal returns (SettlementCalc memory calc) {
         SlippageShare memory shares = slippageShares;
 
