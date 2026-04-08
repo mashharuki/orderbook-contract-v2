@@ -1160,4 +1160,102 @@ contract SeraRouteTest is TestHelper {
         assertEq(eth.balanceOf(taker), 0, "Taker wallet ETH should be 0");
         assertEq(sera.vault().balanceOf(address(eth), taker), 0, "Taker vault ETH should be 0");
     }
+
+    // =========================================================================
+    // SFO-05: settleRoutedLeg must reject same-token legs and self-matches
+    // =========================================================================
+
+    /// @notice settleRoutedLeg reverts on same-token leg (fromToken == toToken)
+    function test_settleRoutedLeg_SameTokenMatch_Reverts() public {
+        _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
+        _mintAndDeposit(maker1, address(usdc), 1000 ether, sera);
+
+        // Both orders trade USDC → USDC (same token)
+        Order memory takerOrder = Order({
+            user: taker,
+            fromToken: address(usdc),
+            toToken: address(usdc),
+            fromAmount: 1000 ether,
+            toAmount: 1000 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: taker,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 1
+        });
+
+        Order memory makerOrder = Order({
+            user: maker1,
+            fromToken: address(usdc),
+            toToken: address(usdc),
+            fromAmount: 1000 ether,
+            toAmount: 1000 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: maker1,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 2
+        });
+
+        MatchData[] memory matches = new MatchData[](1);
+        matches[0] = MatchData({
+            order0: takerOrder,
+            signature0: bytes(""),
+            matchAmount0: 1000 ether,
+            order1: makerOrder,
+            signature1: _signOrder(maker1PK, makerOrder, sera),
+            matchAmount1: 1000 ether
+        });
+
+        bytes memory sorSig = _signIntent(
+            takerPK, address(usdc), address(usdc), 0, 0, taker, 0,
+            block.timestamp, uint48(block.timestamp + 1 days), sera
+        );
+
+        vm.prank(executor);
+        vm.expectRevert(Sera.SameTokenMatch.selector);
+        sor.executeIntent(
+            matches, sorSig,
+            IntentParams(address(usdc), address(usdc), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            uint8(matches.length * 2 + 1), 0, bytes("")
+        );
+    }
+
+    /// @notice settleRoutedLeg reverts on self-match (identical order on both sides)
+    function test_settleRoutedLeg_SelfMatch_Reverts() public {
+        _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
+
+        // Same-token order so TokenMismatch passes, but both SameTokenMatch and SelfMatch apply.
+        // SameTokenMatch fires first.
+        Order memory o = Order({
+            user: taker,
+            fromToken: address(usdc),
+            toToken: address(usdc),
+            fromAmount: 1000 ether,
+            toAmount: 1000 ether,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: taker,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: 1
+        });
+
+        bytes memory sig = _signOrder(takerPK, o, sera);
+
+        MatchData[] memory matches = new MatchData[](1);
+        matches[0] = MatchData(o, bytes(""), 500 ether, o, sig, 500 ether);
+
+        bytes memory sorSig = _signIntent(
+            takerPK, address(usdc), address(usdc), 0, 0, taker, 0,
+            block.timestamp, uint48(block.timestamp + 1 days), sera
+        );
+
+        vm.prank(executor);
+        vm.expectRevert(Sera.SameTokenMatch.selector);
+        sor.executeIntent(
+            matches, sorSig,
+            IntentParams(address(usdc), address(usdc), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            uint8(matches.length * 2 + 1), 0, bytes("")
+        );
+    }
 }
