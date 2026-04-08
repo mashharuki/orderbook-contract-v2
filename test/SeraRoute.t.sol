@@ -774,7 +774,7 @@ contract SeraRouteTest is TestHelper {
 
         // Second execution with same intent signature reverts
         vm.prank(executor);
-        vm.expectRevert(SeraSOR.IntentAlreadyUsed.selector);
+        vm.expectRevert(Sera.UuidAlreadyUsed.selector);
         sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 

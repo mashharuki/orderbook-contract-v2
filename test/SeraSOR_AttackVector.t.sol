@@ -100,7 +100,7 @@ contract SeraSOR_AttackVector_Test is TestHelper {
         // Replay — intent already consumed, should revert
         _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
         vm.prank(executor);
-        vm.expectRevert(SeraSOR.IntentAlreadyUsed.selector);
+        vm.expectRevert(Sera.UuidAlreadyUsed.selector);
         sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
