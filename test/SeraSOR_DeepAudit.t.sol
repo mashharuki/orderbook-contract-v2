@@ -355,11 +355,11 @@ contract SeraSOR_DeepAudit is TestHelper {
 
         uint256 sorUuid = 42;
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days), sera
+            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
 
         // Same uuid, same user — should revert
         _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
@@ -372,7 +372,7 @@ contract SeraSOR_DeepAudit is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(Sera.UuidAlreadyUsed.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
     }
 
     // ===================================================================
@@ -417,11 +417,11 @@ contract SeraSOR_DeepAudit is TestHelper {
 
         // Sign SOR with maxInputAmount = 0 (no cap) and minOutputAmount = 0 (no floor)
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 0, 0, taker, 0, 300, uint48(block.timestamp + 1 days), sera
+            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, 300, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, 300, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, 300, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
 
         // Succeeded - all 5000 USDC were spent with no envelope cap
         assertEq(v.balanceOf(address(usdc), taker), 0, "All 5000 USDC spent");
@@ -537,11 +537,11 @@ contract SeraSOR_DeepAudit is TestHelper {
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days), sera
+            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
 
         // Taker has recipient=taker (non-zero), so ETH is withdrawn to wallet
         assertEq(eth.balanceOf(taker), 10 ether);
@@ -695,11 +695,11 @@ contract SeraSOR_DeepAudit is TestHelper {
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
 
         bytes memory sorSig = _signIntent(
-            takerPK, address(usdc), address(eth), 0, 0, taker, 0, sharedUuid, uint48(block.timestamp + 1 days), sera
+            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, sharedUuid, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(usdc), address(eth), 0, 0, taker, 0, sharedUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, sharedUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
 
         // Now use uuid=42 for instant withdraw — should succeed (different namespace)
         address[] memory tokens = new address[](1);

@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 
 import {EIP712} from "solady/src/utils/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -428,17 +429,14 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
      * @param _sig Signature bytes (64 or 65 bytes)
      */
     function _validateSignature(address _user, bytes32 _structHash, bytes calldata _sig) internal view {
-        if (_sig.length != 65 && _sig.length != 64) revert InvalidSignatureLength();
         bytes32 digest = _hashTypedData(_structHash);
-        (uint8 v, bytes32 r, bytes32 s) = ECDSA.parseCalldata(_sig);
-        address recovered = ECDSA.recover(digest, v, r, s);
-        if (recovered != _user) revert InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNowCalldata(_user, digest, _sig)) revert InvalidSignature();
     }
 
     /// @notice Build EIP-712 digest for an SOR payload under Sera domain
     /// @dev Used by SeraSOR for SOR flexible routing. Named 'getIntentDigest' for legacy reasons.
-    function getIntentDigest(address inputToken, address outputToken, uint256 maxInputAmount, uint256 minOutputAmount, address recipient, uint256 initialDepositAmount, uint256 uuid, uint48 deadline) external view returns (bytes32) {
-        bytes32 structHash = keccak256(abi.encode(INTENT_TYPEHASH, inputToken, outputToken, maxInputAmount, minOutputAmount, recipient, initialDepositAmount, uuid, deadline));
+    function getIntentDigest(address taker, address inputToken, address outputToken, uint256 maxInputAmount, uint256 minOutputAmount, address recipient, uint256 initialDepositAmount, uint256 uuid, uint48 deadline) external view returns (bytes32) {
+        bytes32 structHash = keccak256(abi.encode(INTENT_TYPEHASH, taker, inputToken, outputToken, maxInputAmount, minOutputAmount, recipient, initialDepositAmount, uuid, deadline));
         return _hashTypedData(structHash);
     }
 
