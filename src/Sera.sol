@@ -3,7 +3,7 @@
 pragma solidity 0.8.24;
 
 import {EIP712} from "solady/src/utils/EIP712.sol";
-import {ECDSA as SoladyECDSA} from "solady/src/utils/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -230,8 +230,9 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
         if (executorSignature.length != 65 && executorSignature.length != 64) revert InvalidSignatureLength();
         bytes32 digest = _hashTypedData(sorHash);
-        address recoveredExecutor = SoladyECDSA.recover(digest, executorSignature);
-        if (recoveredExecutor == address(0) || !hasRole(EXECUTOR_ROLE, recoveredExecutor)) revert InvalidSignature();
+        (uint8 v, bytes32 r, bytes32 s) = ECDSA.parseCalldata(executorSignature);
+        address recoveredExecutor = ECDSA.recover(digest, v, r, s);
+        if (!hasRole(EXECUTOR_ROLE, recoveredExecutor)) revert InvalidSignature();
 
         isUuidExecuted[intent.user][intent.uuid] = true;
 
@@ -425,8 +426,9 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     function _validateSignature(address _user, bytes32 _structHash, bytes calldata _sig) internal view {
         if (_sig.length != 65 && _sig.length != 64) revert InvalidSignatureLength();
         bytes32 digest = _hashTypedData(_structHash);
-        address recovered = SoladyECDSA.recover(digest, _sig);
-        if (recovered == address(0) || recovered != _user) revert InvalidSignature();
+        (uint8 v, bytes32 r, bytes32 s) = ECDSA.parseCalldata(_sig);
+        address recovered = ECDSA.recover(digest, v, r, s);
+        if (recovered != _user) revert InvalidSignature();
     }
 
     /// @notice Build EIP-712 digest for an SOR payload under Sera domain

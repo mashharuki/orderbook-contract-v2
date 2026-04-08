@@ -2,7 +2,7 @@
 // SeraSOR: Smart Order Router for multi-leg atomic route matching with transient balance optimization.
 pragma solidity 0.8.24;
 
-import {ECDSA as SoladyECDSA} from "solady/src/utils/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
@@ -171,8 +171,8 @@ contract SeraSOR is SeraBase {
     function _validateAndConsumeIntent(bytes calldata signature, IntentParams calldata p) internal returns (address takerUser) {
         // Validate EIP-712 signature
         bytes32 digest = sera.getIntentDigest(p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline);
-        takerUser = SoladyECDSA.recover(digest, signature);
-        if (takerUser == address(0)) revert Sera.InvalidSignature();
+        (uint8 v, bytes32 r, bytes32 s) = ECDSA.parseCalldata(signature);
+        takerUser = ECDSA.recover(digest, v, r, s);
 
         // Per-user replay protection: each uuid can only execute once per user
         if (isIntentUuidUsed[takerUser][p.uuid]) revert IntentAlreadyUsed();
