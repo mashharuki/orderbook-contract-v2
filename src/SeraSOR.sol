@@ -2,7 +2,7 @@
 // SeraSOR: Smart Order Router for multi-leg atomic route matching with transient balance optimization.
 pragma solidity 0.8.24;
 
-import {ECDSA as SoladyECDSA} from "solady/src/utils/ECDSA.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
@@ -31,7 +31,7 @@ contract SeraSOR is SeraBase {
     error TransientBalanceNotZero(address token, uint256 amount);
     error InsufficientOutput();
     error ExcessiveInput();
-    error IntentAlreadyUsed(); // NOTE: Refers to SOR execution replay protection
+
 
     // ============ Events ============
     event IntentMatched(bytes32 indexed intentHash, address indexed taker, uint256 legCount); // NOTE: 'intent' refers to SOR execution
@@ -39,10 +39,6 @@ contract SeraSOR is SeraBase {
 
     /// @notice Upper bound to protect against pathological gas usage
     uint256 public constant MAX_ROUTE_LEGS = 20;
-
-    /// @notice Tracks used SOR UUIDs per user for replay protection
-    /// @dev Named 'isIntentUuidUsed' for legacy reasons — refers to SOR execution replay protection.
-    mapping(address => mapping(uint256 => bool)) public isIntentUuidUsed;
 
     constructor(address _sera) SeraBase(_sera) {}
 
@@ -161,7 +157,7 @@ contract SeraSOR is SeraBase {
      * @dev Named '_computeIntentHash' for legacy reasons — refers to SOR hash computation.
      */
     function _computeIntentHash(IntentParams calldata p) internal pure returns (bytes32) {
-        return keccak256(abi.encode(INTENT_TYPEHASH, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline));
+        return keccak256(abi.encode(INTENT_TYPEHASH, p.taker, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline));
     }
 
     /**
@@ -169,14 +165,15 @@ contract SeraSOR is SeraBase {
      * @dev Named '_validateAndConsumeIntent' for legacy reasons — refers to SOR validation.
      */
     function _validateAndConsumeIntent(bytes calldata signature, IntentParams calldata p) internal returns (address takerUser) {
-        // Validate EIP-712 signature
-        bytes32 digest = sera.getIntentDigest(p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline);
-        takerUser = SoladyECDSA.recover(digest, signature);
-        if (takerUser == address(0)) revert Sera.InvalidSignature();
+        takerUser = p.taker;
+        // Validate EIP-712 signature (supports both EOA and ERC-1271 smart contract wallets)
+        bytes32 digest = sera.getIntentDigest(p.taker, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline);
+        if (!SignatureChecker.isValidSignatureNowCalldata(takerUser, digest, signature)) {
+            revert Sera.InvalidSignature();
+        }
 
-        // Per-user replay protection: each uuid can only execute once per user
-        if (isIntentUuidUsed[takerUser][p.uuid]) revert IntentAlreadyUsed();
-        isIntentUuidUsed[takerUser][p.uuid] = true;
+        // Per-user replay protection: delegated to Sera so all routers share one registry (SFO-17)
+        sera.consumeIntentUuid(takerUser, p.uuid);
     }
 
     function _consumeTransientBalance(address[] memory tokens, uint256[] memory amounts, uint256 tableSize, address token, uint256 requested) internal pure returns (uint256 effectiveAmount, uint256 remaining) {
@@ -239,6 +236,7 @@ contract SeraSOR is SeraBase {
                 s := calldataload(add(signature.offset, 0x20))
                 v := byte(0, calldataload(add(signature.offset, 0x40)))
             }
+            if (v < 27) v += 27;
         } else if (signature.length == 64) {
             assembly {
                 let vs := calldataload(add(signature.offset, 0x20))

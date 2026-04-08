@@ -52,6 +52,7 @@ struct WithdrawIntent {
  * @dev NOTE: Named 'IntentParams' for legacy reasons — this refers to SOR parameters.
  */
 struct IntentParams {
+    address taker;
     address inputToken;
     address outputToken;
     uint256 maxInputAmount;
@@ -65,7 +66,7 @@ struct IntentParams {
 bytes32 constant ORDER_TYPEHASH = keccak256("Order(address user,uint48 expiration,uint48 feeBps,address recipient,address fromToken,address toToken,uint256 fromAmount,uint256 toAmount,uint256 initialDepositAmount,uint256 uuid)");
 
 // NOTE: Named 'INTENT_TYPEHASH' for legacy reasons — this refers to the SOR parameters type hash.
-bytes32 constant INTENT_TYPEHASH = keccak256("Intent(address inputToken,address outputToken,uint256 maxInputAmount,uint256 minOutputAmount,address recipient,uint256 initialDepositAmount,uint256 uuid,uint48 deadline)");
+bytes32 constant INTENT_TYPEHASH = keccak256("Intent(address taker,address inputToken,address outputToken,uint256 maxInputAmount,uint256 minOutputAmount,address recipient,uint256 initialDepositAmount,uint256 uuid,uint48 deadline)");
 
 // NOTE: Named 'WITHDRAW_INTENT_TYPEHASH' for legacy reasons — this refers to the SOR withdrawal type hash.
 bytes32 constant WITHDRAW_INTENT_TYPEHASH = keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)");

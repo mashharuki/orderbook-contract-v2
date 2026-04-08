@@ -3,7 +3,8 @@
 pragma solidity 0.8.24;
 
 import {EIP712} from "solady/src/utils/EIP712.sol";
-import {ECDSA as SoladyECDSA} from "solady/src/utils/ECDSA.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -68,7 +69,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /// @notice Maximum blocks a delayed withdrawal remains valid after the requestBlock (48hrs)
     uint32 public constant WITHDRAW_EXPIRATION_BLOCKS = 14400;
 
-    /// @notice Maximum order expiration time (1 year)
+    /// @notice Maximum allowed remaining lifetime at first execution (1 year from block.timestamp, not from signing)
     uint256 public constant MAX_EXPIRATION = 365 days;
 
     /// @notice Track filled amount for order hashes to support partial fills
@@ -76,6 +77,10 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /// @notice SOR replay protection using struct uuid nonce per user
     /// @dev Cannot use hash to protect against uuid replay attacks. Named 'isUuidExecuted' — refers to SOR withdrawal execution.
     mapping(address => mapping(uint256 => bool)) public isUuidExecuted;
+
+    /// @notice SOR intent replay protection, centralized in Sera so all routers share one registry
+    /// @dev Moved from SeraSOR to prevent cross-router replay when multiple routers share the same Sera instance (SFO-17).
+    mapping(address => mapping(uint256 => bool)) public isIntentUuidUsed;
 
     bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
 
@@ -230,8 +235,9 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
         if (executorSignature.length != 65 && executorSignature.length != 64) revert InvalidSignatureLength();
         bytes32 digest = _hashTypedData(sorHash);
-        address recoveredExecutor = SoladyECDSA.recover(digest, executorSignature);
-        if (recoveredExecutor == address(0) || !hasRole(EXECUTOR_ROLE, recoveredExecutor)) revert InvalidSignature();
+        (uint8 v, bytes32 r, bytes32 s) = ECDSA.parseCalldata(executorSignature);
+        address recoveredExecutor = ECDSA.recover(digest, v, r, s);
+        if (!hasRole(EXECUTOR_ROLE, recoveredExecutor)) revert InvalidSignature();
 
         isUuidExecuted[intent.user][intent.uuid] = true;
 
@@ -283,6 +289,13 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /**
      * @notice Core order matching execution with price validation, fee capture, and settlement.
      * @dev Inlined from former _collectAndDistribute to save one internal call frame (~200 gas).
+     *
+     *      Spread allocation note: when makerShareBps != takerShareBps, the surplus split depends
+     *      on which order the executor places in the order0 (taker-share) vs order1 (maker-share) slot.
+     *      Both users are guaranteed at least their signed limit price regardless of ordering.
+     *      The spread above those limits is surplus, and its allocation is an EXECUTOR_ROLE operational
+     *      decision — the same trusted role that selects which orders to match and at what amounts.
+     *      For routed legs (settleRoutedLeg), the taker/maker distinction is structurally unambiguous.
      */
     function _executeMatch(MatchData calldata _match, bytes32 orderHash0, bytes32 orderHash1) internal {
         // Calculate the execution values for both orders
@@ -312,7 +325,11 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         bool order1FullyFilled;
     }
 
-    /// @notice Compute fees, spreads, update filled amounts, and return settlement results
+    /// @notice Compute fees, spreads, update filled amounts, and return settlement results.
+    /// @dev Spread is divided into protocol, maker (order1), and taker (order0) shares.
+    ///      In matchOrders, both sides are limit orders with no intrinsic role — the executor's
+    ///      input ordering determines who receives which share. This is by design: the executor
+    ///      is a trusted role. In settleRoutedLeg, order0 is always the SOR taker.
     function _calculateSettlement(MatchData calldata _match, uint256 executionValue0, uint256 executionValue1, uint256 effectiveAmount0, uint256 effectiveAmount1, bytes32 orderHash0, bytes32 orderHash1) internal returns (SettlementCalc memory calc) {
         SlippageShare memory shares = slippageShares;
 
@@ -392,6 +409,9 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         // First time validations, skipped for subsequent fills to save gas
         if (filled == 0) {
             if (order.fromAmount == 0 || order.toAmount == 0) revert InvalidAmount();
+            // Caps remaining lifetime at execution, not total lifetime since signing.
+            // A signature with a distant expiration may initially fail this check but become
+            // acceptable once block.timestamp advances close enough — this is by design.
             if (order.expiration > block.timestamp + MAX_EXPIRATION) revert OrderExpirationTooLong();
             if (order.feeBps > BPS_DENOMINATOR) revert InvalidFee(); // Not more than 100% fee
 
@@ -409,16 +429,14 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
      * @param _sig Signature bytes (64 or 65 bytes)
      */
     function _validateSignature(address _user, bytes32 _structHash, bytes calldata _sig) internal view {
-        if (_sig.length != 65 && _sig.length != 64) revert InvalidSignatureLength();
         bytes32 digest = _hashTypedData(_structHash);
-        address recovered = SoladyECDSA.recover(digest, _sig);
-        if (recovered == address(0) || recovered != _user) revert InvalidSignature();
+        if (!SignatureChecker.isValidSignatureNowCalldata(_user, digest, _sig)) revert InvalidSignature();
     }
 
     /// @notice Build EIP-712 digest for an SOR payload under Sera domain
     /// @dev Used by SeraSOR for SOR flexible routing. Named 'getIntentDigest' for legacy reasons.
-    function getIntentDigest(address inputToken, address outputToken, uint256 maxInputAmount, uint256 minOutputAmount, address recipient, uint256 initialDepositAmount, uint256 uuid, uint48 deadline) external view returns (bytes32) {
-        bytes32 structHash = keccak256(abi.encode(INTENT_TYPEHASH, inputToken, outputToken, maxInputAmount, minOutputAmount, recipient, initialDepositAmount, uuid, deadline));
+    function getIntentDigest(address taker, address inputToken, address outputToken, uint256 maxInputAmount, uint256 minOutputAmount, address recipient, uint256 initialDepositAmount, uint256 uuid, uint48 deadline) external view returns (bytes32) {
+        bytes32 structHash = keccak256(abi.encode(INTENT_TYPEHASH, taker, inputToken, outputToken, maxInputAmount, minOutputAmount, recipient, initialDepositAmount, uuid, deadline));
         return _hashTypedData(structHash);
     }
 
@@ -431,6 +449,16 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
         return _domainSeparator();
+    }
+
+    // ============ SOR Intent Replay Protection (called by SeraSOR) ============
+
+    /// @notice Mark an intent UUID as consumed. Only callable by the trusted router.
+    /// @dev Centralizes replay protection in Sera so multiple router deployments cannot replay the same intent (SFO-17).
+    function consumeIntentUuid(address user, uint256 uuid) external {
+        if (msg.sender != trustedRouter) revert RouterNotTrusted();
+        if (isIntentUuidUsed[user][uuid]) revert UuidAlreadyUsed();
+        isIntentUuidUsed[user][uuid] = true;
     }
 
     // ============ Routed Settlement (called by SeraSOR) ============
@@ -462,6 +490,10 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
         // Token symmetry (checked before expensive signature validation)
         if (_match.order0.fromToken != _match.order1.toToken || _match.order1.fromToken != _match.order0.toToken) revert TokenMismatch();
+
+        // SFO-05: Same guards as matchOrders — reject same-token legs and self-matches
+        if (_match.order0.fromToken == _match.order0.toToken) revert SameTokenMatch();
+        if (takerHash == makerHash) revert SelfMatch();
 
         // Maker: full validation (sig + routeHash must be 0)
         _validateMakerOrder(_match.order1, makerHash, _match.signature1, _match.matchAmount1);

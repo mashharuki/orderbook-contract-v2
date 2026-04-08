@@ -108,10 +108,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         Order memory m = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 800 ether, 2);
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 101, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 101, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 101, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 101, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Dust-fix: no tokens should remain in Sera
         _assertNoSeraDust(address(usdc), "USDC after mixed-share spread");
@@ -136,10 +136,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         Order memory m = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 800 ether, 2);
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 102, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 102, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 102, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 102, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC with 100% maker share");
         // 100% maker (TAKER bonus) share
@@ -161,10 +161,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         Order memory m = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 1000 ether, 2);
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 103, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 103, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 103, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 103, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC zero-spread");
         _assertNoSeraDust(address(eth), "ETH zero-spread");
@@ -215,10 +215,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, m2, _signOrder(maker2PK, m2, sera), 2 ether);
         matches[2] = MatchData(t3, bytes(""), type(uint256).max, m3, _signOrder(maker3PK, m3, sera), 200 ether);
 
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 104, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 104, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 104, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 104, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Dust-fix: NO dust should remain in Sera for ANY token
         _assertNoSeraDust(address(usdc), "USDC after 3-leg");
@@ -274,10 +274,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), 1000 ether, m1, _signOrder(maker1PK, m1, sera), 10 ether);
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, m2, _signOrder(maker2PK, m2, sera), 1 ether);
 
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 105, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 105, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 105, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 105, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC fees+spread+sentinel");
         _assertNoSeraDust(address(eth), "ETH fees+spread+sentinel");
@@ -323,10 +323,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), 7, m1, _signOrder(maker1PK, m1, sera), 7);
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, m2, _signOrder(maker2PK, m2, sera), 1);
 
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 106, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 106, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 106, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 106, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Even at wei level with rounding, no dust
         _assertNoSeraDust(address(usdc), "USDC wei-level");
@@ -363,10 +363,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 1000 ether, 107, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 1000 ether, 107, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 1000 ether, 107, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 1000 ether, 107, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC wallet-funded with spread");
         _assertNoSeraDust(address(eth), "ETH wallet-funded with spread");
@@ -405,10 +405,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 108, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 108, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 108, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 108, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC max-spread");
         _assertNoSeraDust(address(eth), "ETH max-spread");
@@ -441,10 +441,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 109, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 109, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 109, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 109, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC one-sided spread");
         _assertNoSeraDust(address(eth), "ETH one-sided spread");
@@ -492,10 +492,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 2000 ether, m1, _signOrder(maker1PK, m1, sera), 20 ether);
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, m2, _signOrder(maker2PK, m2, sera), 3 ether);
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 110, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 110, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 110, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 110, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Token conservation: total supply doesn't change (no mint/burn)
         assertEq(usdc.totalSupply(), totalUsdcBefore, "USDC total supply conserved");
@@ -535,10 +535,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         Order memory t1 = takerBase; // copy
         MatchData[] memory matches1 = new MatchData[](1);
         matches1[0] = MatchData(t1, bytes(""), 1000 ether, maker, _signOrder(maker1PK, maker, sera), 10 ether);
-        bytes memory sig1 = _signIntent(takerPK, matches1[0].order0.fromToken, matches1[matches1.length - 1].order0.toToken, 0, 0, taker, 0, 111, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig1 = _signIntent(takerPK, taker, matches1[0].order0.fromToken, matches1[matches1.length - 1].order0.toToken, 0, 0, taker, 0, 111, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches1, sig1, IntentParams(matches1[0].order0.fromToken, matches1[matches1.length - 1].order0.toToken, 0, 0, taker, 0, 111, uint48(block.timestamp + 1 days)), uint8(matches1.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches1, sig1, IntentParams(taker, matches1[0].order0.fromToken, matches1[matches1.length - 1].order0.toToken, 0, 0, taker, 0, 111, uint48(block.timestamp + 1 days)), uint8(matches1.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC after partial route 1");
 
@@ -546,10 +546,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         Order memory t2 = _makeOrder(taker, address(usdc), address(eth), 2000 ether, 16 ether, 1);
         MatchData[] memory matches2 = new MatchData[](1);
         matches2[0] = MatchData(t2, bytes(""), 1000 ether, maker, _signOrder(maker1PK, maker, sera), 10 ether);
-        bytes memory sig2 = _signIntent(takerPK, matches2[0].order0.fromToken, matches2[matches2.length - 1].order0.toToken, 0, 0, taker, 0, 112, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig2 = _signIntent(takerPK, taker, matches2[0].order0.fromToken, matches2[matches2.length - 1].order0.toToken, 0, 0, taker, 0, 112, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches2, sig2, IntentParams(matches2[0].order0.fromToken, matches2[matches2.length - 1].order0.toToken, 0, 0, taker, 0, 112, uint48(block.timestamp + 1 days)), uint8(matches2.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches2, sig2, IntentParams(taker, matches2[0].order0.fromToken, matches2[matches2.length - 1].order0.toToken, 0, 0, taker, 0, 112, uint48(block.timestamp + 1 days)), uint8(matches2.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC after partial route 2");
         _assertNoSeraDust(address(eth), "ETH after both routes");
@@ -578,10 +578,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 113, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 113, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 113, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 113, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC max-fees+spread");
         _assertNoSeraDust(address(eth), "ETH max-fees+spread");
@@ -621,10 +621,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), 1000 ether, m1, _signOrder(maker1PK, m1, sera), 10 ether);
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, m2, _signOrder(maker1PK, m2, sera), 1 ether);
 
-        bytes memory sig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 114, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 114, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 114, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 114, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC shared-maker");
         _assertNoSeraDust(address(eth), "ETH shared-maker");

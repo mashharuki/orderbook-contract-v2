@@ -93,10 +93,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), 1000 ether, mOrder, _signOrder(maker1PK, mOrder, sera), 100 ether);
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Verify Vault Solvency
         Vault v = sera.vault();
@@ -160,14 +160,14 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), takerMatchAmount, mOrder, _signOrder(maker1PK, mOrder, sera), makerMatchAmount);
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // Revert checks
         vm.prank(owner);
         sera.setSlippageShares(1000, 1000, 8000, 10000);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         Vault v = sera.vault();
         
@@ -212,10 +212,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), tFrom, mOrder, _signOrder(maker1PK, mOrder, sera), mFrom);
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         uint256 spread0 = tFrom - mTo;
         uint256 expectedProtocol0 = spread0 * pShare / totShare; // Floor
@@ -239,13 +239,13 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), initDeposit, mOrder, _signOrder(maker1PK, mOrder, sera), initDeposit/2);
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, initDeposit, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, initDeposit, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(owner);
         sera.setSlippageShares(30, 30, 40, 100);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, initDeposit, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, initDeposit, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         assertEq(aToken.balanceOf(address(sera)), 0, "No stranded dust after wallet injection");
     }
@@ -276,10 +276,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         matches[1] = MatchData(tOrder, bytes(""), f2, m2, _signOrder(maker2PK, m2, sera), f2);
         matches[2] = MatchData(tOrder, bytes(""), f3, m3, _signOrder(maker3PK, m3, sera), f3);
 
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         Vault v = sera.vault();
         assertEq(aToken.balanceOf(address(sera)), 0);
@@ -304,10 +304,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), 1000 ether, mOrder, _signOrder(maker1PK, mOrder, sera), 100 ether);
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         assertEq(aToken.balanceOf(address(sera)), 0);
     }
@@ -324,10 +324,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), x, mOrder, _signOrder(maker1PK, mOrder, sera), x);
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
         assertEq(aToken.balanceOf(address(sera)), 0);
     }
 
@@ -375,10 +375,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         matches[1] = MatchData(tOrder2, bytes(""), type(uint256).max, mOrder2, _signOrder(maker2PK, mOrder2, sera), l1To); // fill all depth
         matches[2] = MatchData(tOrder3, bytes(""), type(uint256).max, mOrder3, _signOrder(maker3PK, mOrder3, sera), l1To);
         
-        bytes memory sorSig = _signIntent(takerPK, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         assertEq(aToken.balanceOf(address(sera)), 0);
         assertEq(bToken.balanceOf(address(sera)), 0);
@@ -408,18 +408,18 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         // First partial fill
         MatchData[] memory m1 = new MatchData[](1);
         m1[0] = MatchData(tOrder, bytes(""), firstFill, mOrder, _signOrder(maker1PK, mOrder, sera), firstFill);
-        bytes memory sig1 = _signIntent(takerPK, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig1 = _signIntent(takerPK, taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(m1, sig1, IntentParams(address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(m1, sig1, IntentParams(taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         // Second fill for remainder
         MatchData[] memory m2 = new MatchData[](1);
         m2[0] = MatchData(tOrder, bytes(""), secondFill, mOrder, _signOrder(maker1PK, mOrder, sera), secondFill);
-        bytes memory sig2 = _signIntent(takerPK, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp + 1, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig2 = _signIntent(takerPK, taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp + 1, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(m2, sig2, IntentParams(address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp + 1, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(m2, sig2, IntentParams(taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp + 1, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         // Both tokens fully consumed — no dust, vault solvent
         assertEq(aToken.balanceOf(address(sera)), 0, "No dust A after partials");
@@ -462,10 +462,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), tFrom, mOrder, _signOrder(maker1PK, mOrder, sera), mFrom);
-        bytes memory sorSig = _signIntent(takerPK, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         // The vault ledger sum for A cannot exceed the physical A held by the vault
         Vault v = sera.vault();
@@ -500,7 +500,7 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), takerAmount, mOrder, _signOrder(maker1PK, mOrder, sera), takerAmount);
-        bytes memory sorSig = _signIntent(takerPK, address(aToken), address(bToken), maxInput, minOutput, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, address(aToken), address(bToken), maxInput, minOutput, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         bool shouldRevertMaxInput = (maxInput > 0 && takerAmount > maxInput);
         bool shouldRevertMinOutput = (minOutput > 0 && takerAmount < minOutput);
@@ -509,7 +509,7 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         if (shouldRevertMaxInput || shouldRevertMinOutput) {
             vm.expectRevert();
         }
-        sor.executeIntent(matches, sorSig, IntentParams(address(aToken), address(bToken), maxInput, minOutput, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(aToken), address(bToken), maxInput, minOutput, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
     }
 
     // ========================================================================
@@ -536,10 +536,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), takerAmount, mOrder, _signOrder(maker1PK, mOrder, sera), takerAmount / 2);
-        bytes memory sorSig = _signIntent(takerPK, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         assertEq(aToken.totalSupply(), supplyA_before, "A supply conserved");
         assertEq(bToken.totalSupply(), supplyB_before, "B supply conserved");
@@ -578,10 +578,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), takerAmount, m1, _signOrder(maker1PK, m1, sera), leg1MakerFrom);
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, m2, _signOrder(maker2PK, m2, sera), leg2MakerFrom);
 
-        bytes memory sorSig = _signIntent(takerPK, address(aToken), address(cToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, address(aToken), address(cToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(aToken), address(cToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(aToken), address(cToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         // Core invariants after sentinel resolution
         assertEq(aToken.balanceOf(address(sera)), 0, "No dust A");
@@ -623,10 +623,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), fromVal, mOrder, _signOrder(maker1PK, mOrder, sera), mFrom);
-        bytes memory sorSig = _signIntent(takerPK, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         assertEq(aToken.balanceOf(address(sera)), 0, "No dust at extreme ratio");
         Vault v = sera.vault();
@@ -664,10 +664,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), amount, mOrder, _signOrder(maker1PK, mOrder, sera), amount / 5);
-        bytes memory sorSig = _signIntent(takerPK, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(aToken), address(bToken), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), type(uint8).max, 0, bytes(""));
 
         // Vault solvency + supply conservation + no dust
         Vault v = sera.vault();

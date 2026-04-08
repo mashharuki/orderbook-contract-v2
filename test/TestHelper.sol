@@ -106,6 +106,7 @@ abstract contract TestHelper is Test {
      */
     function _signIntent(
         uint256 pk,
+        address taker,
         address inputToken, address outputToken,
         uint256 maxInputAmount, uint256 minOutputAmount,
         address recipient, uint256 _initialDepositAmount,
@@ -115,7 +116,7 @@ abstract contract TestHelper is Test {
         bytes32 domainSeparator = sera.DOMAIN_SEPARATOR();
         bytes32 structHash = keccak256(abi.encode(
             INTENT_TYPEHASH,
-            inputToken, outputToken, maxInputAmount, minOutputAmount, recipient, _initialDepositAmount, uuid, deadline
+            taker, inputToken, outputToken, maxInputAmount, minOutputAmount, recipient, _initialDepositAmount, uuid, deadline
         ));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
