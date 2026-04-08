@@ -26,7 +26,7 @@
 4. [Edge Cases & Emergency Controls](#4-edge-cases--emergency-controls-serasor_edgecasetsol--13-tests)
 5. [Precision & Arithmetic](#5-precision--arithmetic-serasor_precisiontsol--4-tests)
 6. [Fuzz Tests](#6-fuzz-tests-serasor_advancedfuzztsol--15-tests)
-7. [Low-Level Route Settlement](#7-low-level-route-settlement-seraroutetsol--17-tests)
+7. [Low-Level Route Settlement](#7-low-level-route-settlement-seraroutetsol--19-tests)
 8. [Extreme Topologies](#8-extreme-topologies-serasor_topologytsol--15-tests)
 9. [Settlement Optimization](#9-settlement-optimization-serasor_settlementtsol--14-tests)
 10. [Settlement Stress](#10-settlement-stress-serasor_settlementstresststsol--13-tests)
@@ -61,6 +61,7 @@ The full 297-test count also includes passing suites that are not expanded secti
 | `SeraFuzz.t.sol` | 5 |
 | `SeraInvariant.t.sol` | 5 |
 | `SeraAuditCoverage.t.sol` | 4 |
+| `SeraSOR_Positive_Slippage.t.sol` | 0 (stub — setUp only, no test functions) |
 
 ---
 
@@ -185,7 +186,7 @@ The full 297-test count also includes passing suites that are not expanded secti
 
 ---
 
-## 7. Low-Level Route Settlement (`SeraRoute.t.sol` — 17 tests)
+## 7. Low-Level Route Settlement (`SeraRoute.t.sol` — 19 tests)
 
 | # | Test | Description |
 |---|------|-------------|
@@ -206,6 +207,8 @@ The full 297-test count also includes passing suites that are not expanded secti
 | 15 | `test_executeRoute_WalletPull_WalletReturn` | Fund source: wallet → wallet. |
 | 16 | `test_executeRoute_WalletPull_ThirdPartyReturn` | Fund source: wallet → third-party address. |
 | 17 | `test_executeRoute_MixedFunds` | Mixed vault + wallet combined inputs. |
+| 18 | `test_settleRoutedLeg_SameTokenMatch_Reverts` | Same-token match via routed leg → revert. |
+| 19 | `test_settleRoutedLeg_SelfMatch_Reverts` | Self-match via routed leg → revert. |
 
 ---
 
