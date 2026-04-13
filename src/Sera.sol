@@ -200,6 +200,8 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
         // If no request exists OR the request has expired, treat it as a new request
         if (request.requestBlock == 0 || block.number > request.requestBlock + WITHDRAW_EXPIRATION_BLOCKS) {
+            // Verify user has sufficient balance at request time to prevent cooldown bypass
+            if (vault.balanceOf(token, msg.sender) < amount) revert WithdrawInsufficientBalance();
             request.requestBlock = block.number;
             request.amount = amount;
             emit WithdrawRequested(msg.sender, token, amount, block.number);
