@@ -2,12 +2,18 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-optimizer = true
+solc_version = "0.8.24"
+optimizer = false
 optimizer_runs = 200
-auto_detect_solc = true
 via_ir = true
 bytecode_hash = "none"
 cbor_metadata = false
+cache = true
+cache_path = "cache"
+build_info = false
+extra_output = []
+extra_output_files = []
+ignored_warnings_from = ["test/", "script/"]
 
 remappings = [
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
