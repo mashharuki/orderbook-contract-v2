@@ -115,8 +115,8 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
         treasury = initialOwner;
         slippageShares = SlippageShare({
-            makerShareBps: 0,
-            takerShareBps: 5000,
+            makerShareBps: 2500,
+            takerShareBps: 2500,
             protocolShareBps: 5000, // Default to 50% protocol capture natively
             totalBps: 10000 // 100% denominator
         });
