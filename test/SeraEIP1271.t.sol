@@ -458,4 +458,110 @@ contract SeraEIP1271Test is TestHelper {
 
         assertEq(IERC20(address(usdc)).balanceOf(address(smartWallet)), 500 ether);
     }
+
+    // ============ Instant Withdraw: smart wallet as EXECUTOR ============
+
+    // The executor parameter goes through the same _validateSignature helper
+    // as the user, so a smart contract wallet holding EXECUTOR_ROLE can
+    // co-sign withdraws via ERC-1271. The underlying ECDSA comes from the
+    // wallet owner's EOA.
+    function test_instantWithdraw_SmartWalletExecutor() public {
+        MockERC1271Wallet executorWallet = new MockERC1271Wallet(executor);
+        bytes32 execRole = sera.EXECUTOR_ROLE();
+        vm.prank(owner);
+        sera.grantRole(execRole, address(executorWallet));
+
+        _mintAndDeposit(counterparty, address(usdc), 500 ether, sera);
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(usdc);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 500 ether;
+
+        WithdrawIntent memory intent = WithdrawIntent({
+            user: counterparty,
+            tokens: tokens,
+            amounts: amounts,
+            recipient: counterparty,
+            deadline: block.timestamp + 1 days,
+            uuid: 70
+        });
+
+        bytes32[] memory tokenWords = new bytes32[](1);
+        tokenWords[0] = bytes32(uint256(uint160(intent.tokens[0])));
+        bytes32 structHash = keccak256(
+            abi.encode(
+                WITHDRAW_INTENT_TYPEHASH,
+                intent.user,
+                keccak256(abi.encodePacked(tokenWords)),
+                keccak256(abi.encodePacked(intent.amounts)),
+                intent.recipient,
+                intent.deadline,
+                intent.uuid
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", sera.DOMAIN_SEPARATOR(), structHash));
+
+        (uint8 uv, bytes32 ur, bytes32 us) = vm.sign(counterpartyPK, digest);
+        bytes memory userSig = abi.encodePacked(ur, us, uv);
+
+        // Executor's "signature" is an ECDSA sig from the wallet owner's
+        // EOA — the smart wallet's isValidSignature recovers it and
+        // authorizes against its stored owner.
+        (uint8 ev, bytes32 er, bytes32 es) = vm.sign(executorPK, digest);
+        bytes memory execSig = abi.encodePacked(er, es, ev);
+
+        sera.executeInstantWithdrawDualSig(intent, userSig, address(executorWallet), execSig);
+
+        assertEq(IERC20(address(usdc)).balanceOf(counterparty), 500 ether);
+    }
+
+    // Negative: smart wallet executor rejects sigs not from its owner.
+    function test_instantWithdraw_SmartWalletExecutor_WrongSigner_Reverts() public {
+        MockERC1271Wallet executorWallet = new MockERC1271Wallet(executor);
+        bytes32 execRole = sera.EXECUTOR_ROLE();
+        vm.prank(owner);
+        sera.grantRole(execRole, address(executorWallet));
+
+        _mintAndDeposit(counterparty, address(usdc), 500 ether, sera);
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(usdc);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 500 ether;
+
+        WithdrawIntent memory intent = WithdrawIntent({
+            user: counterparty,
+            tokens: tokens,
+            amounts: amounts,
+            recipient: counterparty,
+            deadline: block.timestamp + 1 days,
+            uuid: 71
+        });
+
+        bytes32[] memory tokenWords = new bytes32[](1);
+        tokenWords[0] = bytes32(uint256(uint160(intent.tokens[0])));
+        bytes32 structHash = keccak256(
+            abi.encode(
+                WITHDRAW_INTENT_TYPEHASH,
+                intent.user,
+                keccak256(abi.encodePacked(tokenWords)),
+                keccak256(abi.encodePacked(intent.amounts)),
+                intent.recipient,
+                intent.deadline,
+                intent.uuid
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", sera.DOMAIN_SEPARATOR(), structHash));
+
+        (uint8 uv, bytes32 ur, bytes32 us) = vm.sign(counterpartyPK, digest);
+        bytes memory userSig = abi.encodePacked(ur, us, uv);
+
+        // Signed by walletOwnerPK rather than the wallet's owner (executor).
+        (uint8 ev, bytes32 er, bytes32 es) = vm.sign(walletOwnerPK, digest);
+        bytes memory badExecSig = abi.encodePacked(er, es, ev);
+
+        vm.expectRevert(Sera.InvalidSignature.selector);
+        sera.executeInstantWithdrawDualSig(intent, userSig, address(executorWallet), badExecSig);
+    }
 }
