@@ -668,14 +668,19 @@ contract SeraSOR_Topology_Test is TestHelper {
         Order memory t2 = _oFull(taker, address(B), address(C), 500 ether, 50 ether, 3, 0, taker);
         Order memory mk2 = _oFull(m2, address(C), address(B), 200 ether, 200 ether, 4, 0, m2);
 
+        // Leg 1 (A→B, 100% maker): totalSpread0=200 → spreadToMaker0=200.
+        // calc.executionValue1 = 1000 A (to maker1). calc.executionValue0 = 100 B transient (no taker uplift).
+        // Leg 2 sentinel must consume exactly 100 B; size maker2's matchAmount1 accordingly (100 C → 100 B at 1:1).
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk1, _signOrder(m1PK, mk1, sera), 500 ether);
-        matches[1] = MatchData(t2, bytes(""), type(uint256).max, mk2, _signOrder(m2PK, mk2, sera), 200 ether);
+        matches[1] = MatchData(t2, bytes(""), type(uint256).max, mk2, _signOrder(m2PK, mk2, sera), 100 ether);
 
         _exec(matches);
 
-        // Protocol (owner) should have 0 spread (all to maker)
+        // Protocol (owner) should have 0 spread on any token (protocolShareBps = 0).
         assertEq(sera.vault().balanceOf(address(A), owner), 0, "Protocol 0 A spread");
+        assertEq(sera.vault().balanceOf(address(B), owner), 0, "Protocol 0 B spread");
+        assertEq(sera.vault().balanceOf(address(C), owner), 0, "Protocol 0 C spread");
         assertGt(C.balanceOf(taker), 0, "Taker received C");
         address[] memory u = _users();
         _assertSolvent(address(A), u); _assertSolvent(address(B), u); _assertSolvent(address(C), u);

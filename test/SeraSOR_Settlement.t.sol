@@ -408,7 +408,7 @@ contract SeraSOR_Settlement_Test is TestHelper {
         assertEq(vault.balanceOf(address(A), taker), 50 ether, "After R2: 50 A");
     }
 
-    /// @notice 100% maker shares -> maker implicit rebate, taker retains surplus in vault
+    /// @notice 100% maker shares -> maker gets explicit uplift on both tokens; taker has no rebate.
     function test_Shares_AllMaker() public {
         vm.prank(owner);
         sera.setSlippageShares(10000, 0, 0, 10000);
@@ -416,8 +416,10 @@ contract SeraSOR_Settlement_Test is TestHelper {
         _mintAndDeposit(taker, address(A), 1000 ether, sera);
         _mintAndDeposit(m1, address(B), 100 ether, sera);
 
-        // spreadToMaker0 = 200. spreadToTaker0 = 0. calc.executionValue1 = 800.
-        // makerReceives = 800. neededFromTaker = 800. Taker retains 200.
+        // totalSpread0 = 200 → spreadToMaker0 = 200, spreadToTaker0 = 0.
+        // totalSpread1 = 2   → spreadToMaker1 = 2,   spreadToTaker1 = 0.
+        // calc.executionValue1 = 800 + 200 = 1000 (to maker). Taker debited 1000, retains 0.
+        // calc.executionValue0 = 8 + 0 = 8 (to taker). Maker debited 8; retains 100-8 = 92 B (spreadToMaker1=2 implicit).
         Order memory t1 = _o(taker, address(A), address(B), 1000 ether, 8 ether, 1);
         Order memory mk = _o(m1, address(B), address(A), 10 ether, 800 ether, 2);
 
@@ -425,11 +427,13 @@ contract SeraSOR_Settlement_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk, _signOrder(m1PK, mk, sera), 10 ether);
         _exec(matches);
 
-        assertEq(vault.balanceOf(address(A), taker), 200 ether, "Taker retains 200 A");
-        assertEq(A.balanceOf(m1), 800 ether, "Maker wallet gets 800 A");
+        assertEq(vault.balanceOf(address(A), taker), 0, "Taker retains 0 A (spreadToTaker0 = 0)");
+        assertEq(A.balanceOf(m1), 1000 ether, "Maker wallet gets 1000 A (800 + 200 uplift)");
+        assertEq(B.balanceOf(taker), 8 ether, "Taker wallet gets 8 B (no uplift)");
+        assertEq(vault.balanceOf(address(B), m1), 92 ether, "Maker retains 92 B (includes spreadToMaker1=2 implicit)");
     }
 
-    /// @notice 100% taker shares -> spreadToTaker0 inflates calc.executionValue1
+    /// @notice 100% taker shares -> taker gets explicit uplift on both tokens; maker has no rebate.
     function test_Shares_AllTaker() public {
         vm.prank(owner);
         sera.setSlippageShares(0, 10000, 0, 10000);
@@ -437,8 +441,10 @@ contract SeraSOR_Settlement_Test is TestHelper {
         _mintAndDeposit(taker, address(A), 1000 ether, sera);
         _mintAndDeposit(m1, address(B), 100 ether, sera);
 
-        // spreadToTaker0 = 200. calc.executionValue1 = 1000. makerReceives = 1000.
-        // neededFromTaker = 1000. Taker retains 0.
+        // totalSpread0 = 200 → spreadToMaker0 = 0, spreadToTaker0 = 200.
+        // totalSpread1 = 2   → spreadToMaker1 = 0, spreadToTaker1 = 2.
+        // calc.executionValue1 = 800 + 0 = 800 (to maker). Taker debited 800, retains 200 (spreadToTaker0 implicit).
+        // calc.executionValue0 = 8 + 2 = 10 (to taker). Maker debited 10; retains 100-10 = 90 B (no implicit).
         Order memory t1 = _o(taker, address(A), address(B), 1000 ether, 8 ether, 1);
         Order memory mk = _o(m1, address(B), address(A), 10 ether, 800 ether, 2);
 
@@ -446,8 +452,10 @@ contract SeraSOR_Settlement_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk, _signOrder(m1PK, mk, sera), 10 ether);
         _exec(matches);
 
-        assertEq(vault.balanceOf(address(A), taker), 0, "Taker retains 0 A");
-        assertEq(A.balanceOf(m1), 1000 ether, "Maker gets full 1000 A");
+        assertEq(vault.balanceOf(address(A), taker), 200 ether, "Taker retains 200 A (spreadToTaker0 implicit)");
+        assertEq(A.balanceOf(m1), 800 ether, "Maker wallet gets 800 A (no uplift)");
+        assertEq(B.balanceOf(taker), 10 ether, "Taker wallet gets 10 B (8 + 2 uplift)");
+        assertEq(vault.balanceOf(address(B), m1), 90 ether, "Maker retains 90 B (100 - 10 debit, no implicit)");
     }
 
     // ========================================================================

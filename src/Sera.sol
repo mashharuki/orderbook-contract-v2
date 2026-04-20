@@ -342,21 +342,22 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
         uint256 protocolSpread0 = Math.mulDiv(totalSpread0, shares.protocolShareBps, shares.totalBps);
         uint256 spreadToMaker0 = Math.mulDiv(totalSpread0, shares.makerShareBps, shares.totalBps);
-        uint256 spreadToTaker0 = totalSpread0 - protocolSpread0 - spreadToMaker0;
+        // spreadToTaker0 is the residual left in order0.user's deposit (implicit rebate).
 
         uint256 protocolSpread1 = Math.mulDiv(totalSpread1, shares.protocolShareBps, shares.totalBps);
         uint256 spreadToMaker1 = Math.mulDiv(totalSpread1, shares.makerShareBps, shares.totalBps);
+        uint256 spreadToTaker1 = totalSpread1 - protocolSpread1 - spreadToMaker1;
 
         // Refund non-protocol spread to users by manipulating payouts.
-        // Token 0 surplus (USDT) bonuses:
-        // - Taker explicitly receives their `spreadToTaker0` via executionValue1 payout increase.
-        // - Maker implicitly receives `spreadToMaker0` as a rebate (by NOT pulling it from them for executionValue1).
-        calc.executionValue1 = executionValue1 + spreadToTaker0;
+        // Token 0 leg (executionValue1 is paid to order1.user = maker):
+        // - Maker explicitly receives `spreadToMaker0` via executionValue1 payout increase.
+        // - Taker implicitly retains `spreadToTaker0` (not pulled from their deposit).
+        calc.executionValue1 = executionValue1 + spreadToMaker0;
 
-        // Token 1 surplus (SGD) bonuses:
-        // - Maker explicitly receives their `spreadToMaker1` via executionValue0 payout increase.
-        // - Taker implicitly receives `spreadToTaker1` as a rebate.
-        calc.executionValue0 = executionValue0 + spreadToMaker1;
+        // Token 1 leg (executionValue0 is paid to order0.user = taker):
+        // - Taker explicitly receives `spreadToTaker1` via executionValue0 payout increase.
+        // - Maker implicitly retains `spreadToMaker1` (not pulled from their deposit).
+        calc.executionValue0 = executionValue0 + spreadToTaker1;
 
         // Protocol take is the sum of protocol fee and spread
         calc.protocolTake0 = calc.protocolFee0 + protocolSpread0;

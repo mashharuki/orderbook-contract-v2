@@ -277,18 +277,15 @@ contract SeraSOR_AttackVector_Test is TestHelper {
         vm.prank(executor);
         sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
-        // In the SOR routed path:
-        // matchAmount0 = 1000, taker has 1000 in vault, entire 1000 pulled
-        // adjustedEV1 = executionValue1 + takerBonus0 = 800 + 200 = 1000
-        // makerReceives = 1000 - 0 = 1000 USDC (maker gets everything)
-        // Taker vault USDC = 1000 - 1000 = 0
-        assertEq(sera.vault().balanceOf(address(usdc), taker), 0, "Taker spent entire 1000 USDC");
-        // Maker receives 1000 USDC (bonus absorbed into maker payout)
-        assertEq(usdc.balanceOf(maker1), 1000 ether, "Maker received all 1000 USDC");
-        // Taker gets 8 ETH (executionValue0 with all takerBps, makerBonus1=0)
-        assertEq(eth.balanceOf(taker), 8 ether, "Taker received 8 ETH");
-        // Maker keeps 2 ETH in vault (implicit Token 1 rebate)
-        assertEq(sera.vault().balanceOf(address(eth), maker1), 2 ether, "Maker retained 2 ETH spread");
+        // 100% taker shares:
+        //   totalSpread0 = 200 USDC → spreadToMaker0 = 0, spreadToTaker0 = 200 (taker implicit rebate).
+        //   totalSpread1 = 2 ETH   → spreadToMaker1 = 0, spreadToTaker1 = 2   (taker explicit uplift).
+        //   calc.executionValue1 = 800 (maker receives 800 USDC, taker retains 200 in vault).
+        //   calc.executionValue0 = 10 (taker receives 10 ETH; maker retains 0 ETH).
+        assertEq(sera.vault().balanceOf(address(usdc), taker), 200 ether, "Taker retains 200 USDC (spreadToTaker0 implicit)");
+        assertEq(usdc.balanceOf(maker1), 800 ether, "Maker received 800 USDC (no uplift)");
+        assertEq(eth.balanceOf(taker), 10 ether, "Taker received 10 ETH (8 + 2 uplift)");
+        assertEq(sera.vault().balanceOf(address(eth), maker1), 0, "Maker retained 0 ETH (spreadToMaker1 = 0)");
 
         // Protocol gets nothing
         assertEq(sera.vault().balanceOf(address(usdc), owner), 0, "Protocol got no USDC spread");

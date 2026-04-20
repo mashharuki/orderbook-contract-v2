@@ -279,14 +279,16 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         vm.prank(executor);
         sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
-        // Taker only spent 900 USDC (not 1000)
-        // Taker receives: executionValue0 = Ceil(900 * 10/1000) = 9 ETH
-        assertEq(eth.balanceOf(taker), 9 ether, "Taker received 9 ETH (price curve of 1000:10 applied to 900)");
+        // Taker only spent 900 USDC (not 1000).
+        // Default 25/25/50 shares on 1 ETH totalSpread1:
+        //   protocolSpread1 = 0.5, spreadToMaker1 = 0.25, spreadToTaker1 = 0.25.
+        // Taker receives executionValue0 + spreadToTaker1 = 9 + 0.25 = 9.25 ETH.
+        assertEq(eth.balanceOf(taker), 9.25 ether, "Taker received 9.25 ETH (executionValue0 + spreadToTaker1)");
         assertEq(sera.vault().balanceOf(address(usdc), taker), 100 ether, "Taker kept 100 USDC in vault");
         assertEq(usdc.balanceOf(maker1), 900 ether, "Maker received 900 USDC");
-        
-        // Slippage share assertions: 1 ETH spread on Token 1 side is split 50/50 between Protocol. treasury and implicitly retained by Maker
-        assertEq(sera.vault().balanceOf(address(eth), maker1), 0.5 ether, "Maker1 kept 0.5 ETH spread in vault");
+
+        // Slippage share assertions: 1 ETH totalSpread1 → 0.5 protocol, 0.25 maker (implicit), 0.25 taker (explicit uplift above).
+        assertEq(sera.vault().balanceOf(address(eth), maker1), 0.25 ether, "Maker1 implicitly retained 0.25 ETH (spreadToMaker1)");
         assertEq(sera.vault().balanceOf(address(eth), sera.treasury()), 0.5 ether, "Treasury captured 0.5 ETH spread");
     }
 
@@ -489,19 +491,30 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         vm.prank(executor);
         sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
-        // Taker spent only 900 USDC (positive slippage), got BTC
-        // executionValue0 for Leg 2 = Ceil(9 * 1/10) = 0.9 BTC (taker's price curve is 10:1)
-        assertEq(btc.balanceOf(taker), 0.9 ether, "Taker received 0.9 BTC (9 ETH at 10:1 rate)");
+        // Default 25/25/50 shares.
+        // Leg 1 (USDC→ETH, matchAmount0=900): totalSpread1 = 1 ETH →
+        //   protocolSpread1=0.5, spreadToMaker1=0.25, spreadToTaker1=0.25.
+        //   calc.executionValue0 = 9 + 0.25 = 9.25 ETH → transient at sera.
+        //   Treasury +0.5 ETH, maker1 retains 0.25 ETH.
+        // Leg 2 (ETH→BTC, sentinel uses transient 9.25 ETH):
+        //   executionValue0 = ceil(9.25*1/10) = 0.925 BTC, executionValue1 = 9 ETH.
+        //   totalSpread0 = 0.25 ETH → protocol 0.125, maker 0.0625, taker 0.0625.
+        //   totalSpread1 = 0.075 BTC → protocol 0.0375, maker 0.01875, taker 0.01875.
+        //   calc.executionValue1 = 9 + 0.0625 = 9.0625 ETH (to maker2).
+        //   calc.executionValue0 = 0.925 + 0.01875 = 0.94375 BTC (to taker).
+        //   Transient surplus 9.25 - 9.0625 - 0.125 = 0.0625 ETH credited back to taker vault.
+        assertEq(btc.balanceOf(taker), 0.94375 ether, "Taker received 0.94375 BTC (executionValue0 + spreadToTaker1 on leg 2)");
         assertEq(sera.vault().balanceOf(address(usdc), taker), 100 ether, "Taker kept 100 USDC in vault (positive slippage)");
+        assertEq(sera.vault().balanceOf(address(eth), taker), 0.0625 ether, "Taker got 0.0625 ETH spreadToTaker0 residual from leg 2");
         assertEq(usdc.balanceOf(maker1), 900 ether, "Maker1 received 900 USDC");
-        assertEq(eth.balanceOf(maker2), 9 ether, "Maker2 received 9 ETH");
-        
-        // Slippage share assertions
-        assertEq(sera.vault().balanceOf(address(eth), maker1), 0.5 ether, "Maker1 kept 0.5 ETH spread in vault");
-        assertEq(sera.vault().balanceOf(address(btc), maker2), 0.05 ether, "Maker2 kept 0.05 BTC spread in vault");
-        // Treasury gets 0.5 ETH from Leg 1, and 0.05 BTC from Leg 2
-        assertEq(sera.vault().balanceOf(address(eth), sera.treasury()), 0.5 ether, "Treasury captured 0.5 ETH spread");
-        assertEq(sera.vault().balanceOf(address(btc), sera.treasury()), 0.05 ether, "Treasury captured 0.05 BTC spread");
+        assertEq(eth.balanceOf(maker2), 9.0625 ether, "Maker2 received 9.0625 ETH (executionValue1 + spreadToMaker0 on leg 2)");
+
+        // Implicit rebates retained by makers
+        assertEq(sera.vault().balanceOf(address(eth), maker1), 0.25 ether, "Maker1 implicitly retained 0.25 ETH (spreadToMaker1 leg 1)");
+        assertEq(sera.vault().balanceOf(address(btc), maker2), 0.01875 ether, "Maker2 implicitly retained 0.01875 BTC (spreadToMaker1 leg 2)");
+        // Treasury gets 0.5 ETH from leg 1 token1 and 0.125 ETH from leg 2 token0; 0.0375 BTC from leg 2 token1.
+        assertEq(sera.vault().balanceOf(address(eth), sera.treasury()), 0.625 ether, "Treasury captured 0.625 ETH spread (0.5 + 0.125)");
+        assertEq(sera.vault().balanceOf(address(btc), sera.treasury()), 0.0375 ether, "Treasury captured 0.0375 BTC spread");
     }
 
     // ============ 10. WALLET-FUNDED DYNAMIC FILL ============
