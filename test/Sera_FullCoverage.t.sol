@@ -416,7 +416,7 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory sig = new bytes(65);
 
         vm.expectRevert(Sera.IntentExpired.selector);
-        sera.executeInstantWithdrawDualSig(intent, sig, sig);
+        sera.executeInstantWithdrawDualSig(intent, sig, executor, sig);
     }
 
     function test_instantWithdraw_LengthMismatch_Reverts() public {
@@ -430,7 +430,7 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory sig = new bytes(65);
 
         vm.expectRevert(Sera.LengthMismatch.selector);
-        sera.executeInstantWithdrawDualSig(intent, sig, sig);
+        sera.executeInstantWithdrawDualSig(intent, sig, executor, sig);
     }
 
     function test_instantWithdraw_EmptyTokens_Reverts() public {
@@ -441,7 +441,7 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory sig = new bytes(65);
 
         vm.expectRevert(Sera.InvalidTokenCount.selector);
-        sera.executeInstantWithdrawDualSig(intent, sig, sig);
+        sera.executeInstantWithdrawDualSig(intent, sig, executor, sig);
     }
 
     function test_instantWithdraw_TooManyTokens_Reverts() public {
@@ -456,7 +456,7 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory sig = new bytes(65);
 
         vm.expectRevert(Sera.InvalidTokenCount.selector);
-        sera.executeInstantWithdrawDualSig(intent, sig, sig);
+        sera.executeInstantWithdrawDualSig(intent, sig, executor, sig);
     }
 
     function test_instantWithdraw_BadExecutorSigLength_Reverts() public {
@@ -472,8 +472,8 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory userSig = _signWithdrawIntentHelper(user1PK, intent);
         bytes memory badExecSig = new bytes(63); // bad length
 
-        vm.expectRevert(Sera.InvalidSignatureLength.selector);
-        sera.executeInstantWithdrawDualSig(intent, userSig, badExecSig);
+        vm.expectRevert(Sera.InvalidSignature.selector);
+        sera.executeInstantWithdrawDualSig(intent, userSig, executor, badExecSig);
     }
 
     function test_instantWithdraw_BadExecutorRole_Reverts() public {
@@ -491,7 +491,7 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory badExecSig = _signWithdrawIntentHelper(user2PK, intent);
 
         vm.expectRevert(Sera.InvalidSignature.selector);
-        sera.executeInstantWithdrawDualSig(intent, userSig, badExecSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, user2, badExecSig);
     }
 
     function test_instantWithdraw_ZeroAmountInArray_Reverts() public {
@@ -508,7 +508,7 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory execSig = _signWithdrawIntentHelper(executorPK, intent);
 
         vm.expectRevert(SeraAdmin.InvalidAmount.selector);
-        sera.executeInstantWithdrawDualSig(intent, userSig, execSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, executor, execSig);
     }
 
     function test_instantWithdraw_ZeroTokenInArray_Reverts() public {
@@ -525,7 +525,7 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory execSig = _signWithdrawIntentHelper(executorPK, intent);
 
         vm.expectRevert(abi.encodeWithSelector(SeraAdmin.InvalidToken.selector, address(0)));
-        sera.executeInstantWithdrawDualSig(intent, userSig, execSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, executor, execSig);
     }
 
     function test_instantWithdraw_ZeroRecipient_FallsBackToUser() public {
@@ -541,7 +541,7 @@ contract Sera_FullCoverage is TestHelper {
         bytes memory userSig = _signWithdrawIntentHelper(user1PK, intent);
         bytes memory execSig = _signWithdrawIntentHelper(executorPK, intent);
 
-        sera.executeInstantWithdrawDualSig(intent, userSig, execSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, executor, execSig);
 
         // recipient = address(0) → fallback to intent.user
         assertEq(usdt.balanceOf(user1), 50 ether, "Withdrawn to user when recipient=0");

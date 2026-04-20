@@ -151,10 +151,10 @@ contract SeraCoverageExtrasTest is TestHelper {
         (uint8 ev, bytes32 er, bytes32 es) = vm.sign(ownerPK, digest);
         bytes memory executorSig = abi.encodePacked(er, es, ev);
 
-        sera.executeInstantWithdrawDualSig(intent, userSig, executorSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, owner, executorSig);
 
         vm.expectRevert(Sera.UuidAlreadyUsed.selector);
-        sera.executeInstantWithdrawDualSig(intent, userSig, executorSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, owner, executorSig);
     }
 
     function test_coverage_payout_or_deposit_branch() public {
