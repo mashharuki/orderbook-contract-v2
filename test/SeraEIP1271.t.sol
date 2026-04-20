@@ -454,7 +454,7 @@ contract SeraEIP1271Test is TestHelper {
         (uint8 ev, bytes32 er, bytes32 es) = vm.sign(executorPK, digest);
         bytes memory execSig = abi.encodePacked(er, es, ev);
 
-        sera.executeInstantWithdrawDualSig(intent, userSig, execSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, executor, execSig);
 
         assertEq(IERC20(address(usdc)).balanceOf(address(smartWallet)), 500 ether);
     }

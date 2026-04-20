@@ -470,7 +470,7 @@ contract SeraTest is TestHelper {
         (uint8 ev, bytes32 er, bytes32 es) = vm.sign(ownerPK, digest);
         bytes memory executorSig = abi.encodePacked(er, es, ev);
 
-        orderBook.executeInstantWithdrawDualSig(intent, userSig, executorSig);
+        orderBook.executeInstantWithdrawDualSig(intent, userSig, owner, executorSig);
 
         assertEq(USDT.balanceOf(user), 50 ether);
         assertEq(SGD.balanceOf(user), 50 ether);

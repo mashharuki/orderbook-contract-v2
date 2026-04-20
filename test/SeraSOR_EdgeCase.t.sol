@@ -345,13 +345,13 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
         bytes memory execSig = abi.encodePacked(r, s, v);
 
         // First withdraw succeeds
-        sera.executeInstantWithdrawDualSig(intent, userSig, execSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, executor, execSig);
         assertEq(usdc.balanceOf(taker), 500 ether, "First withdraw success");
 
         // Replay with same uuid reverts
         _mintAndDeposit(taker, address(usdc), 500 ether, sera);
         vm.expectRevert(Sera.UuidAlreadyUsed.selector);
-        sera.executeInstantWithdrawDualSig(intent, userSig, execSig);
+        sera.executeInstantWithdrawDualSig(intent, userSig, executor, execSig);
     }
 
     // ========================================================================

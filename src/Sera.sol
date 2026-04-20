@@ -221,25 +221,23 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /**
      * @notice Instant bulk withdrawal with dual authorization (user signature + executor signature)
      * @dev Allows frozen users to withdraw. Anybody can submit this transaction.
+     *      Supports both EOA and ERC-1271 contract wallets for both user and executor signatures.
      * @param intent User's signed withdraw intent (supports multiple tokens up to 20)
      * @param userSignature User's EIP-712 signature
+     * @param executor Address of the executor (must have EXECUTOR_ROLE)
      * @param executorSignature Executor's EIP-712 signature approving the exact same intent
      */
-    function executeInstantWithdrawDualSig(WithdrawIntent calldata intent, bytes calldata userSignature, bytes calldata executorSignature) external whenNotPaused nonReentrant {
+    function executeInstantWithdrawDualSig(WithdrawIntent calldata intent, bytes calldata userSignature, address executor, bytes calldata executorSignature) external whenNotPaused nonReentrant {
         if (intent.deadline <= block.timestamp) revert IntentExpired();
         if (isUuidExecuted[intent.user][intent.uuid]) revert UuidAlreadyUsed();
         if (intent.tokens.length != intent.amounts.length) revert LengthMismatch();
         if (intent.tokens.length == 0 || intent.tokens.length > 20) revert InvalidTokenCount();
+        if (!hasRole(EXECUTOR_ROLE, executor)) revert InvalidSignature();
 
         bytes32 sorHash = keccak256(abi.encode(WITHDRAW_INTENT_TYPEHASH, intent.user, SeraLib.hashAddressArray(intent.tokens), SeraLib.hashUint256Array(intent.amounts), intent.recipient, intent.deadline, intent.uuid));
 
         _validateSignature(intent.user, sorHash, userSignature);
-
-        if (executorSignature.length != 65 && executorSignature.length != 64) revert InvalidSignatureLength();
-        bytes32 digest = _hashTypedData(sorHash);
-        (uint8 v, bytes32 r, bytes32 s) = ECDSA.parseCalldata(executorSignature);
-        address recoveredExecutor = ECDSA.recover(digest, v, r, s);
-        if (!hasRole(EXECUTOR_ROLE, recoveredExecutor)) revert InvalidSignature();
+        _validateSignature(executor, sorHash, executorSignature);
 
         isUuidExecuted[intent.user][intent.uuid] = true;
 
