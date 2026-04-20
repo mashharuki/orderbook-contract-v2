@@ -142,9 +142,10 @@ contract SeraSOR_Extreme_Test is TestHelper {
         sor.executeIntent(matches, sig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, 102, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         _assertNoSeraDust(address(usdc), "USDC with 100% maker share");
-        // 100% maker (TAKER bonus) share
-        assertEq(sera.vault().balanceOf(address(usdc), taker), 200 ether, "Taker got full 200 USDC rebate");
-        assertEq(usdc.balanceOf(maker1), 800 ether, "Maker got NO spread, just execution value");
+        // 100% maker share: spreadToMaker0 = 200, spreadToTaker0 = 0.
+        //   calc.executionValue1 = 800 + 200 = 1000 → maker wallet. Taker has zero implicit rebate.
+        assertEq(sera.vault().balanceOf(address(usdc), taker), 0, "Taker got 0 USDC rebate (spreadToTaker0 = 0)");
+        assertEq(usdc.balanceOf(maker1), 1000 ether, "Maker got 1000 USDC (800 + 200 spreadToMaker0 uplift)");
         assertEq(sera.vault().balanceOf(address(usdc), owner), 0, "Treasury captured 0 spread");
     }
 
@@ -371,9 +372,12 @@ contract SeraSOR_Extreme_Test is TestHelper {
         _assertNoSeraDust(address(usdc), "USDC wallet-funded with spread");
         _assertNoSeraDust(address(eth), "ETH wallet-funded with spread");
 
-        // Spread distribution logic
-        assertEq(sera.vault().balanceOf(address(usdc), taker), 40 ether, "Taker vault received 40 USDC rebate (20%)");
-        assertEq(usdc.balanceOf(maker1), 860 ether, "Maker received 800 execution + 60 spread (30%)");
+        // Shares (maker=2000, taker=3000, protocol=5000) on totalSpread0 = 200 USDC:
+        //   protocolSpread0 = 100, spreadToMaker0 = 40, spreadToTaker0 = 60.
+        //   calc.executionValue1 = 800 + 40 = 840 → maker wallet.
+        //   Taker retains spreadToTaker0 = 60 implicit in vault.
+        assertEq(sera.vault().balanceOf(address(usdc), taker), 60 ether, "Taker vault retains 60 USDC (spreadToTaker0 = 30%)");
+        assertEq(usdc.balanceOf(maker1), 840 ether, "Maker received 800 execution + 40 spreadToMaker0 (20%)");
         assertEq(sera.vault().balanceOf(address(usdc), owner), 100 ether, "Treasury captured 100 USDC spread (50%)");
     }
 

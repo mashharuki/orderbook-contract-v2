@@ -409,15 +409,18 @@ contract SeraSOR_SettlementStress_Test is TestHelper {
         matches[0] = MatchData(t1, bytes(""), 1000 ether, mk, _signOrder(m1PK, mk, sera), 10 ether);
         _exec(matches);
 
-        // spreadToMaker0 = mulDiv(200, 9998, 10000) = 199.96e18 (slippage shares use 10000 base)
-        // protocolSpread0 = mulDiv(200, 1, 10000) = 0.02e18
-        // spreadToTaker0 = 200 - 199.96 - 0.02 = 0.02e18
-        // neededFromTaker is very low, taker retains most of spread (via makerBonus0)
+        // Shares (maker=9998, taker=1, protocol=1) on totalSpread0 = 200:
+        //   spreadToMaker0 = mulDiv(200, 9998, 10000) = 199.96e18 → maker explicit uplift.
+        //   protocolSpread0 = 0.02e18 → treasury.
+        //   spreadToTaker0 = 200 - 199.96 - 0.02 = 0.02e18 → taker implicit retention.
+        //   calc.executionValue1 = 800 + 199.96 = 999.96 (to maker wallet).
         _assertNoDust(address(A));
 
-        // Taker should retain nearly 200 (since 99.98% goes to maker implicit, taker vault keeps)
+        // Taker retains only the tiny taker share (1 bp) as implicit vault residual.
         uint256 takerA = vault.balanceOf(address(A), taker);
-        assertGt(takerA, 199 ether, "Extreme skew: taker retained ~200A");
+        assertEq(takerA, 0.02 ether, "Extreme skew: taker retains spreadToTaker0 = 0.02 A (1 bp of 200)");
+        assertEq(A.balanceOf(m1), 999.96 ether, "Maker wallet = 800 + 199.96 spreadToMaker0");
+        assertEq(vault.balanceOf(address(A), sera.treasury()), 0.02 ether, "Treasury captured protocolSpread0 = 0.02 A");
     }
 
     // ========================================================================

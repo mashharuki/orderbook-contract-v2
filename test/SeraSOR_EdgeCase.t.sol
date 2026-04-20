@@ -247,22 +247,21 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
 
         Vault v = sera.vault();
 
-        // totalSpread0 = 1000 - 800 = 200
-        // makerBonus0 = floor(200 * 3000/10000) = 60 → taker vault rebate
-        // takerBonus0 = 200 - floor(200*5000/10000) - floor(200*3000/10000) = 200 - 100 - 60 = 40
-        // protocolSpread0 = floor(200 * 5000/10000) = 100
+        // Shares (maker=3000, taker=2000, protocol=5000) on totalSpread0 = 200:
+        //   protocolSpread0 = 100, spreadToMaker0 = 60, spreadToTaker0 = 40.
+        //   calc.executionValue1 = 800 + spreadToMaker0 = 860 → maker explicit uplift.
+        //   Taker retains spreadToTaker0 = 40 implicit.
         uint256 takerRebate = v.balanceOf(address(usdc), taker);
-        assertEq(takerRebate, 60 ether, "Taker USDC rebate = makerBonus0 = 60");
+        assertEq(takerRebate, 40 ether, "Taker USDC retains spreadToTaker0 = 40 (implicit)");
 
         uint256 protocolUsdc = v.balanceOf(address(usdc), owner);
         assertEq(protocolUsdc, 100 ether, "Protocol USDC take = protocolSpread0 = 100");
 
-        // Maker receives: executionValue1 + takerBonus0 - protocolFee0 = 800 + 40 - 0 = 840
-        // Maker recipient != address(0), so USDC is sent to maker's wallet via safeTransfer
+        // Maker receives calc.executionValue1 - protocolFee0 = 860 - 0 = 860 USDC via safeTransfer to wallet.
         uint256 makerUsdc = usdc.balanceOf(maker1);
-        assertEq(makerUsdc, 840 ether, "Maker USDC received = 840");
+        assertEq(makerUsdc, 860 ether, "Maker USDC received = 860 (800 + spreadToMaker0=60)");
 
-        // Total: 60 + 100 + 840 = 1000 = matchAmount0
+        // Total: 40 + 100 + 860 = 1000 = matchAmount0
         assertEq(takerRebate + protocolUsdc + makerUsdc, 1000 ether, "Token 0 sum = matchAmount0");
 
         _assertNoSeraDust(address(usdc), "exact rebate USDC");
@@ -288,15 +287,13 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
 
         Vault v = sera.vault();
 
-        // Token 1 (ETH): EV0 = 8, spread1 = 2
-        // makerBonus1 = floor(2e18 * 3000/10000) = 0.6 ETH (at wei precision, NOT zero)
-        // protocolSpread1 = floor(2e18 * 5000/10000) = 1 ETH
-        // takerBonus1 = 2 - 1 - 0.6 = 0.4 ETH
-        // adjustedEV0 = 8 + 0.6 = 8.6 ETH. takerReceives = 8.6 - 0 = 8.6 ETH
-        // maker debited: 8.6 (payout) + 1(protocol) = 9.6. maker keeps 0.4
-
-        assertEq(eth.balanceOf(taker), 8.6 ether, "Taker ETH = 8.6 (includes makerBonus1)");
-        assertEq(v.balanceOf(address(eth), maker1), 0.4 ether, "Maker ETH remaining = 0.4 (takerBonus1)");
+        // Token 1 (ETH): executionValue0 = 8, totalSpread1 = 2.
+        //   Shares (maker=3000, taker=2000, protocol=5000):
+        //   protocolSpread1 = 1, spreadToMaker1 = 0.6, spreadToTaker1 = 0.4.
+        //   calc.executionValue0 = 8 + spreadToTaker1 = 8.4 → taker explicit uplift.
+        //   Maker debited 8.4 (payout) + 1 (protocol) = 9.4; retains 0.6 (spreadToMaker1 implicit).
+        assertEq(eth.balanceOf(taker), 8.4 ether, "Taker ETH = 8.4 (8 + spreadToTaker1=0.4 uplift)");
+        assertEq(v.balanceOf(address(eth), maker1), 0.6 ether, "Maker ETH remaining = 0.6 (spreadToMaker1 implicit)");
         assertEq(v.balanceOf(address(eth), owner), 1 ether, "Protocol ETH = 1");
     }
 
@@ -458,18 +455,22 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
         _mintAndDeposit(maker1, address(eth), 10 ether, sera);
         _mintAndDeposit(maker2, address(btc), 5 ether, sera);
 
-        // Leg 1: USDC→ETH. Taker: 1000→8 ETH, Maker: 10→800 USDC
-        // totalSpread0 = 200. makerBonus0 = floor(200*5000/10000) = 100 → taker vault rebate
-        // totalSpread1 = 2. makerBonus1 = floor(2*5000/10000) = 1.
-        // adjustedEV0 = 8 + 1 = 9. takerReceives = 9 ETH (held in Sera for next leg)
+        // Shares (maker=5000, taker=0, protocol=5000): taker gets zero explicit and zero implicit on every leg.
+        // Leg 1: USDC→ETH. Taker: 1000→8 ETH, Maker: 10→800 USDC. matchAmount0 = 1000, matchAmount1 = 10.
+        //   totalSpread0 = 200 → protocol 100, spreadToMaker0 = 100, spreadToTaker0 = 0.
+        //   totalSpread1 = 2   → protocol 1,   spreadToMaker1 = 1,   spreadToTaker1 = 0.
+        //   calc.executionValue1 = 800 + 100 = 900 (maker1 wallet USDC).
+        //   calc.executionValue0 = 8 + 0 = 8 ETH transient held in Sera.
         Order memory t1 = _makeOrder(taker, address(usdc), address(eth), 1000 ether, 8 ether, 1);
         t1.recipient = address(sera);
         Order memory m1 = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 800 ether, 2);
 
-        // Leg 2: ETH→BTC. Taker: 10→1, Maker: 1→5 ETH
-        // effectiveAmount0 = 9 (sentinel). EV0 = Ceil(9*1/10) = 1 BTC. EV1 = Ceil(1*5/1) = 5 ETH.
-        // spread0 = 9 - 5 = 4. makerBonus0 = floor(4*5000/10000) = 2 → taker vault rebate!
-        // spread1 = 1 - 1 = 0.
+        // Leg 2: ETH→BTC. Taker: 10→1, Maker: 1→5 ETH. Sentinel consumes 8 ETH transient.
+        //   effectiveAmount0 = 8. executionValue0 = ceil(8*1/10) = 0.8 BTC. executionValue1 = 5 ETH.
+        //   totalSpread0 = 8 - 5 = 3 ETH → protocol 1.5, spreadToMaker0 = 1.5, spreadToTaker0 = 0.
+        //   totalSpread1 = 1 - 0.8 = 0.2 BTC → protocol 0.1, spreadToMaker1 = 0.1, spreadToTaker1 = 0.
+        //   calc.executionValue1 = 5 + 1.5 = 6.5 (to maker2 wallet).
+        //   calc.executionValue0 = 0.8 + 0 = 0.8 BTC (to taker wallet).
         Order memory t2 = _makeOrder(taker, address(eth), address(btc), 10 ether, 1 ether, 3);
         Order memory m2 = _makeOrder(maker2, address(btc), address(eth), 1 ether, 5 ether, 4);
 
@@ -483,11 +484,18 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
 
         Vault v = sera.vault();
 
-        // Taker USDC rebate from Leg 1: makerBonus0 = 100
-        assertEq(v.balanceOf(address(usdc), taker), 100 ether, "Taker USDC rebate from leg 1 = 100");
+        // Taker gets no explicit or implicit share on either leg (takerShareBps = 0).
+        assertEq(v.balanceOf(address(usdc), taker), 0, "Taker USDC: no rebate (spreadToTaker0 = 0)");
+        assertEq(v.balanceOf(address(eth), taker), 0, "Taker ETH: no transient surplus (spreadToTaker0 leg2 = 0)");
+        assertEq(btc.balanceOf(taker), 0.8 ether, "Taker BTC = 0.8 (executionValue0, no uplift)");
 
-        // Taker ETH rebate from Leg 2: makerBonus0 (of ETH) = 2
-        assertEq(v.balanceOf(address(eth), taker), 2 ether, "Taker ETH rebate from leg 2 = 2");
+        // Makers receive explicit uplifts.
+        assertEq(usdc.balanceOf(maker1), 900 ether, "Maker1 USDC = 900 (800 + spreadToMaker0 = 100)");
+        assertEq(eth.balanceOf(maker2), 6.5 ether, "Maker2 ETH = 6.5 (5 + spreadToMaker0 = 1.5)");
+
+        // Makers retain their implicit rebates on token1 of each leg (vault balance reflects initial deposit - actual debit).
+        assertEq(v.balanceOf(address(eth), maker1), 1 ether, "Maker1 retains 1 ETH (10 dep - 9 debit; spreadToMaker1=1)");
+        assertEq(v.balanceOf(address(btc), maker2), 4.1 ether, "Maker2 retains 4.1 BTC (5 dep - 0.9 debit; spreadToMaker1=0.1)");
 
         _assertNoSeraDust(address(usdc), "MultiLeg USDC");
         _assertNoSeraDust(address(eth), "MultiLeg ETH");
