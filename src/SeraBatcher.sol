@@ -71,7 +71,12 @@ contract SeraBatcher is SeraBase {
      * @param _matches Array of match instructions (max 20 pairs)
      * @return failedMask Bitmask where bit `i` is 1 if that specific match failed.
      */
-    function batchMatchOrders(MatchData[] calldata _matches, uint256 deadline) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused returns (uint256 failedMask) {
+    function batchMatchOrders(MatchData[] calldata _matches, uint256 deadline)
+        external
+        onlySeraRole(EXECUTOR_ROLE_CACHED)
+        whenNotPaused
+        returns (uint256 failedMask)
+    {
         if (block.timestamp > deadline) revert MatchExpired();
         if (_matches.length > MAX_BATCH_SIZE) revert TooManyOrders();
 
@@ -96,7 +101,11 @@ contract SeraBatcher is SeraBase {
      * @dev If ANY match fails, the entire transaction reverts.
      * @param _matches Array of match instructions (max 20 to prevent gas limit issues)
      */
-    function batchMatchOrdersAtomic(MatchData[] calldata _matches, uint256 deadline) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
+    function batchMatchOrdersAtomic(MatchData[] calldata _matches, uint256 deadline)
+        external
+        onlySeraRole(EXECUTOR_ROLE_CACHED)
+        whenNotPaused
+    {
         if (block.timestamp > deadline) revert MatchExpired();
         if (_matches.length > MAX_BATCH_SIZE) revert TooManyOrders();
 
@@ -119,7 +128,17 @@ contract SeraBatcher is SeraBase {
      * @param _intents Array of SOR executions (continue-on-error, max 10). Named 'intents' for legacy reasons.
      * @return failedMask Bitmask where bit `i` is 1 if that specific atomic batch, single match, or SOR execution failed, sequentially.
      */
-    function batchMatchMixed(AtomicBatch[] calldata _atomicBatches, MatchData[] calldata _singleMatches, IntentExecution[] calldata _intents, uint256 deadline) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused returns (uint256 failedMask) {
+    function batchMatchMixed(
+        AtomicBatch[] calldata _atomicBatches,
+        MatchData[] calldata _singleMatches,
+        IntentExecution[] calldata _intents,
+        uint256 deadline
+    )
+        external
+        onlySeraRole(EXECUTOR_ROLE_CACHED)
+        whenNotPaused
+        returns (uint256 failedMask)
+    {
         if (block.timestamp > deadline) revert MatchExpired();
         if (_atomicBatches.length > MAX_BATCH_SIZE) revert TooManyBatches();
         if (_singleMatches.length > MAX_BATCH_SIZE) revert TooManyOrders();
@@ -160,7 +179,14 @@ contract SeraBatcher is SeraBase {
         uint256 intentOffset = _atomicBatches.length + _singleMatches.length;
         for (uint256 i = 0; i < _intents.length;) {
             IntentExecution calldata ie = _intents[i];
-            try sor.executeIntent(ie.matches, ie.intentSignature, ie.intent, ie.uniqueTokenCount, ie.permitDeadline, ie.permitSignature) {
+            try sor.executeIntent(
+                ie.matches,
+                ie.intentSignature,
+                ie.intent,
+                ie.uniqueTokenCount,
+                ie.permitDeadline,
+                ie.permitSignature
+            ) {
                 // Success
             } catch (bytes memory lowLevelData) {
                 failedMask |= (1 << (intentOffset + i));
@@ -170,6 +196,9 @@ contract SeraBatcher is SeraBase {
                 ++i;
             }
         }
+
+		uint256 attempted = _atomicBatches.length + _singleMatches.length + _intents.length;
+        emit BatchExecuted(attempted, failedMask);
     }
 
     /// @notice Contract version for tracking. New contracts are deployed with incremented version.
