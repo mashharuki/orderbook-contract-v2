@@ -14,7 +14,18 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "./interface/IVault.sol";
 import "./SeraAdmin.sol";
-import {SeraLib, MatchExpired, Order, MatchData, WithdrawIntent, InvalidCostAmount, ORDER_TYPEHASH, INTENT_TYPEHASH, WITHDRAW_INTENT_TYPEHASH, BPS_DENOMINATOR} from "./SeraLib.sol";
+import {
+    SeraLib,
+    MatchExpired,
+    Order,
+    MatchData,
+    WithdrawIntent,
+    InvalidCostAmount,
+    ORDER_TYPEHASH,
+    INTENT_TYPEHASH,
+    WITHDRAW_INTENT_TYPEHASH,
+    BPS_DENOMINATOR
+} from "./SeraLib.sol";
 
 /**
  * @title Sera - Orderbook DEX with Vault Custody
@@ -91,12 +102,25 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /// @dev It is granted special privileges to bypass the Taker's signature verification for individual legs of a multi-hop trade, because the contract itself guarantees the math works out safely. In this case, it is SeraSOR.
     address public trustedRouter;
 
-    event OrderMatched(bytes32 indexed orderHash0, address indexed user0, address token0, uint256 amount0, uint256 protocolTake0, bytes32 indexed orderHash1, address user1, address token1, uint256 amount1, uint256 protocolTake1);
+    event OrderMatched(
+        bytes32 indexed orderHash0,
+        address indexed user0,
+        address token0,
+        uint256 amount0,
+        uint256 protocolTake0,
+        bytes32 indexed orderHash1,
+        address user1,
+        address token1,
+        uint256 amount1,
+        uint256 protocolTake1
+    );
     event UserFrozenStateChanged(bool frozen, address indexed user);
     event OrderFullyFilled(bytes32 indexed orderHash, address indexed user);
     event ExecutorSet(bool isActive, address indexed executor);
     event WithdrawRequested(address indexed user, address indexed token, uint256 amount, uint256 indexed requestBlock);
-    event InstantWithdraw(address indexed user, uint256 indexed uuid, address indexed token, uint256 amount, address recipient);
+    event InstantWithdraw(
+        address indexed user, uint256 indexed uuid, address indexed token, uint256 amount, address recipient
+    );
 
     event Withdraw(address indexed token, address indexed to, uint256 amount);
     event TrustedRouterSet(address indexed router);
@@ -148,7 +172,14 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     /// @param _depositAmount Amount to actually move to Vault (must be <= _permitAmount)
     /// @param _deadline Permit deadline
     /// @param _sig Permit signature (65 or 64 bytes)
-    function depositFundWithPermit(address _token, address _owner, uint256 _permitAmount, uint256 _depositAmount, uint256 _deadline, bytes calldata _sig) external whenNotPaused {
+    function depositFundWithPermit(
+        address _token,
+        address _owner,
+        uint256 _permitAmount,
+        uint256 _depositAmount,
+        uint256 _deadline,
+        bytes calldata _sig
+    ) external whenNotPaused {
         if (!tokenConfigs[_token].isWhitelisted) revert TokenNotWhitelisted(_token);
         if (_depositAmount > _permitAmount) revert AmountMismatch();
 
@@ -227,14 +258,29 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
      * @param executor Address of the executor (must have EXECUTOR_ROLE)
      * @param executorSignature Executor's EIP-712 signature approving the exact same intent
      */
-    function executeInstantWithdrawDualSig(WithdrawIntent calldata intent, bytes calldata userSignature, address executor, bytes calldata executorSignature) external whenNotPaused nonReentrant {
+    function executeInstantWithdrawDualSig(
+        WithdrawIntent calldata intent,
+        bytes calldata userSignature,
+        address executor,
+        bytes calldata executorSignature
+    ) external whenNotPaused nonReentrant {
         if (intent.deadline <= block.timestamp) revert IntentExpired();
         if (isUuidExecuted[intent.user][intent.uuid]) revert UuidAlreadyUsed();
         if (intent.tokens.length != intent.amounts.length) revert LengthMismatch();
         if (intent.tokens.length == 0 || intent.tokens.length > 20) revert InvalidTokenCount();
         if (!hasRole(EXECUTOR_ROLE, executor)) revert InvalidSignature();
 
-        bytes32 sorHash = keccak256(abi.encode(WITHDRAW_INTENT_TYPEHASH, intent.user, SeraLib.hashAddressArray(intent.tokens), SeraLib.hashUint256Array(intent.amounts), intent.recipient, intent.deadline, intent.uuid));
+        bytes32 sorHash = keccak256(
+            abi.encode(
+                WITHDRAW_INTENT_TYPEHASH,
+                intent.user,
+                SeraLib.hashAddressArray(intent.tokens),
+                SeraLib.hashUint256Array(intent.amounts),
+                intent.recipient,
+                intent.deadline,
+                intent.uuid
+            )
+        );
 
         _validateSignature(intent.user, sorHash, userSignature);
         _validateSignature(executor, sorHash, executorSignature);
@@ -268,7 +314,9 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     function matchOrders(MatchData calldata _match, uint256 deadline) external onlyRole(EXECUTOR_ROLE) whenNotPaused nonReentrant {
         if (block.timestamp > deadline) revert MatchExpired();
         // Token symmetry (checked first to save gas on revert)
-        if (_match.order0.fromToken != _match.order1.toToken || _match.order1.fromToken != _match.order0.toToken) revert TokenMismatch();
+        if (_match.order0.fromToken != _match.order1.toToken || _match.order1.fromToken != _match.order0.toToken) {
+            revert TokenMismatch();
+        }
         // Reject same-token pairs: prevents withdrawal-like settlement bypassing the 24h delay
         if (_match.order0.fromToken == _match.order0.toToken) revert SameTokenMatch();
 
@@ -301,16 +349,46 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         // Calculate the execution values for both orders
         (uint256 executionValue0, uint256 executionValue1) = SeraLib._executionValues(_match, _match.matchAmount0, _match.matchAmount1);
 
-        SettlementCalc memory calc = _calculateSettlement(_match, executionValue0, executionValue1, _match.matchAmount0, _match.matchAmount1, orderHash0, orderHash1);
+        SettlementCalc memory calc =
+            _calculateSettlement(_match, executionValue0, executionValue1, _match.matchAmount0, _match.matchAmount1, orderHash0, orderHash1);
 
-        _executeVaultSettlement(_match.order0.user, _match.order1.user, _match.order1.recipient, _match.order0.fromToken, calc.executionValue1 - calc.protocolFee0, calc.protocolTake0);
+        _executeVaultSettlement(
+            _match.order0.user,
+            _match.order1.user,
+            _match.order1.recipient,
+            _match.order0.fromToken,
+            calc.executionValue1 - calc.protocolFee0,
+            calc.protocolTake0
+        );
 
-        _executeVaultSettlement(_match.order1.user, _match.order0.user, _match.order0.recipient, _match.order1.fromToken, calc.executionValue0 - calc.protocolFee1, calc.protocolTake1);
+        _executeVaultSettlement(
+            _match.order1.user,
+            _match.order0.user,
+            _match.order0.recipient,
+            _match.order1.fromToken,
+            calc.executionValue0 - calc.protocolFee1,
+            calc.protocolTake1
+        );
 
-        emit OrderMatched(orderHash0, _match.order0.user, _match.order0.fromToken, _match.matchAmount0, calc.protocolTake0, orderHash1, _match.order1.user, _match.order1.fromToken, _match.matchAmount1, calc.protocolTake1);
+        emit OrderMatched(
+            orderHash0,
+            _match.order0.user,
+            _match.order0.fromToken,
+            _match.matchAmount0,
+            calc.protocolTake0,
+            orderHash1,
+            _match.order1.user,
+            _match.order1.fromToken,
+            _match.matchAmount1,
+            calc.protocolTake1
+        );
 
-        if (calc.order0FullyFilled) emit OrderFullyFilled(orderHash0, _match.order0.user);
-        if (calc.order1FullyFilled) emit OrderFullyFilled(orderHash1, _match.order1.user);
+        if (calc.order0FullyFilled) {
+            emit OrderFullyFilled(orderHash0, _match.order0.user);
+        }
+        if (calc.order1FullyFilled) {
+            emit OrderFullyFilled(orderHash1, _match.order1.user);
+        }
     }
 
     /// @notice Computed fee/spread/fill results shared by standalone and routed settlement.
@@ -330,7 +408,15 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     ///      In matchOrders, both sides are limit orders with no intrinsic role — the executor's
     ///      input ordering determines who receives which share. This is by design: the executor
     ///      is a trusted role. In settleRoutedLeg, order0 is always the SOR taker.
-    function _calculateSettlement(MatchData calldata _match, uint256 executionValue0, uint256 executionValue1, uint256 effectiveAmount0, uint256 effectiveAmount1, bytes32 orderHash0, bytes32 orderHash1) internal returns (SettlementCalc memory calc) {
+    function _calculateSettlement(
+        MatchData calldata _match,
+        uint256 executionValue0,
+        uint256 executionValue1,
+        uint256 effectiveAmount0,
+        uint256 effectiveAmount1,
+        bytes32 orderHash0,
+        bytes32 orderHash1
+    ) internal returns (SettlementCalc memory calc) {
         SlippageShare memory shares = slippageShares;
 
         // Protocol takes protocol fee AND its configured portion of the spread
@@ -369,7 +455,14 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         calc.order1FullyFilled = (filledAmount[orderHash1] >= _match.order1.fromAmount);
     }
 
-    function _executeVaultSettlement(address fromUser, address toUser, address recipient, address token, uint256 payoutAmount, uint256 treasuryAmount) internal {
+    function _executeVaultSettlement(
+        address fromUser,
+        address toUser,
+        address recipient,
+        address token,
+        uint256 payoutAmount,
+        uint256 treasuryAmount
+    ) internal {
         if (payoutAmount > 0) {
             if (recipient == address(0)) {
                 // Internal ledger swap (no physical ERC20 transfer required)
@@ -381,23 +474,34 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         }
 
         // Transfer protocol take to treasury in vault
-        if (treasuryAmount > 0) vault.transferLedger(fromUser, treasury, token, treasuryAmount);
+        if (treasuryAmount > 0) {
+            vault.transferLedger(fromUser, treasury, token, treasuryAmount);
+        }
     }
 
     // ============ Internal Functions ============
 
-    function _validateMakerOrder(Order calldata order, bytes32 orderHash, bytes calldata signature, uint256 matchAmount) internal view {
+    function _validateMakerOrder(Order calldata order, bytes32 orderHash, bytes calldata signature, uint256 matchAmount)
+        internal
+        view
+    {
         uint256 filled = _validateOrderCommon(order, orderHash, matchAmount);
 
         // Validate signature using the already-computed orderHash only if it's the first time. Saves gas for partially filled, verified orders.
-        if (filled == 0) _validateSignature(order.user, orderHash, signature);
+        if (filled == 0) {
+            _validateSignature(order.user, orderHash, signature);
+        }
 
         // Prevent ghost liquidity by checking actual vault balance
         if (vault.balanceOf(order.fromToken, order.user) < matchAmount) revert InsufficientVaultBalance();
     }
 
     /// @notice Common order validation checks shared between standalone and SOR paths
-    function _validateOrderCommon(Order calldata order, bytes32 orderHash, uint256 matchAmount) internal view returns (uint256 filled) {
+    function _validateOrderCommon(Order calldata order, bytes32 orderHash, uint256 matchAmount)
+        internal
+        view
+        returns (uint256 filled)
+    {
         if (matchAmount == 0) revert InvalidAmount();
 
         if (order.expiration <= block.timestamp) revert OrderExpired();
@@ -436,8 +540,17 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
     /// @notice Build EIP-712 digest for an SOR payload under Sera domain
     /// @dev Used by SeraSOR for SOR flexible routing. Named 'getIntentDigest' for legacy reasons.
-    function getIntentDigest(address taker, address inputToken, address outputToken, uint256 maxInputAmount, uint256 minOutputAmount, address recipient, uint256 initialDepositAmount, uint256 uuid, uint48 deadline) external view returns (bytes32) {
-        bytes32 structHash = keccak256(abi.encode(INTENT_TYPEHASH, taker, inputToken, outputToken, maxInputAmount, minOutputAmount, recipient, initialDepositAmount, uuid, deadline));
+    function getIntentDigest(
+        address taker,
+        address inputToken, address outputToken,
+        uint256 maxInputAmount, uint256 minOutputAmount,
+        address recipient, uint256 initialDepositAmount,
+        uint256 uuid, uint48 deadline
+    ) external view returns (bytes32) {
+        bytes32 structHash = keccak256(abi.encode(
+            INTENT_TYPEHASH, taker, inputToken, outputToken,
+            maxInputAmount, minOutputAmount, recipient, initialDepositAmount, uuid, deadline
+        ));
         return _hashTypedData(structHash);
     }
 
@@ -472,7 +585,12 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
      * @param holdTakerOutput If true, hold taker's output tokens in Sera for next leg
      * @return takerReceives Amount of output tokens the taker receives (after fees)
      */
-    function settleRoutedLeg(MatchData calldata _match, uint256 takerVaultPull, bool holdTakerOutput, uint256 effectiveMatchAmount0) external whenNotPaused nonReentrant returns (uint256 takerReceives, bytes32 takerHash, bytes32 makerHash) {
+    function settleRoutedLeg(MatchData calldata _match, uint256 takerVaultPull, bool holdTakerOutput, uint256 effectiveMatchAmount0)
+        external
+        whenNotPaused
+        nonReentrant
+        returns (uint256 takerReceives, bytes32 takerHash, bytes32 makerHash)
+    {
         if (msg.sender != trustedRouter) revert RouterNotTrusted();
 
         takerHash = SeraLib.getOrderHashCalldata(_match.order0);
@@ -487,10 +605,16 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         // Vault balance check only for amount actually pulled
         // Since we now optimize vault pulls inside _settleRoutedLegInternal, the full pull might not happen.
         // However, we still check against the max possible pull here for early revert/security.
-        if (takerVaultPull > 0) if (vault.balanceOf(_match.order0.fromToken, _match.order0.user) < takerVaultPull) revert InsufficientVaultBalance();
+        if (takerVaultPull > 0) {
+            if (vault.balanceOf(_match.order0.fromToken, _match.order0.user) < takerVaultPull) {
+                revert InsufficientVaultBalance();
+            }
+        }
 
         // Token symmetry (checked before expensive signature validation)
-        if (_match.order0.fromToken != _match.order1.toToken || _match.order1.fromToken != _match.order0.toToken) revert TokenMismatch();
+        if (_match.order0.fromToken != _match.order1.toToken || _match.order1.fromToken != _match.order0.toToken) {
+            revert TokenMismatch();
+        }
 
         // SFO-05: Same guards as matchOrders — reject same-token legs and self-matches
         if (_match.order0.fromToken == _match.order0.toToken) revert SameTokenMatch();
@@ -506,9 +630,17 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
      * @notice Internal settlement for a routed leg with transient balance support.
      * @dev Handles fee/spread calc, filled amounts, vault pulls, distribution, and events.
      */
-    function _settleRoutedLegInternal(MatchData calldata _match, bytes32 takerHash, bytes32 makerHash, uint256 takerVaultPull, bool holdTakerOutput, uint256 effectiveMatchAmount0) internal returns (uint256 takerReceives) {
+    function _settleRoutedLegInternal(
+        MatchData calldata _match,
+        bytes32 takerHash,
+        bytes32 makerHash,
+        uint256 takerVaultPull,
+        bool holdTakerOutput,
+        uint256 effectiveMatchAmount0
+    ) internal returns (uint256 takerReceives) {
         (uint256 executionValue0, uint256 executionValue1) = SeraLib._executionValues(_match, effectiveMatchAmount0, _match.matchAmount1);
-        SettlementCalc memory calc = _calculateSettlement(_match, executionValue0, executionValue1, effectiveMatchAmount0, _match.matchAmount1, takerHash, makerHash);
+        SettlementCalc memory calc =
+            _calculateSettlement(_match, executionValue0, executionValue1, effectiveMatchAmount0, _match.matchAmount1, takerHash, makerHash);
 
         // Cache hot storage/calldata fields to avoid redundant reads
         address takerFromToken = _match.order0.fromToken;
@@ -517,21 +649,25 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
 
         uint256 makerReceives = calc.executionValue1 - calc.protocolFee0;
         uint256 neededFromTaker = makerReceives + calc.protocolTake0;
-
+        
         // Calculate the amount of transient physical tokens already resting inside Sera.sol from previous legs or wallet deposits
         uint256 transientPhysical = effectiveMatchAmount0 - takerVaultPull;
 
         if (neededFromTaker > transientPhysical) {
             // Deficit: We must pull the remaining difference from the user's vault
             uint256 actualPull = neededFromTaker - transientPhysical;
-
+            
             // Defensive check: This should be mathematically impossible since neededFromTaker <= effectiveMatchAmount0
             // but we bound the pull strictly against takerVaultPull to guarantee no unexpected behavior
-            if (actualPull > takerVaultPull) actualPull = takerVaultPull;
-
-            if (actualPull > 0) vault.withdraw(_match.order0.user, takerFromToken, actualPull, address(this));
+            if (actualPull > takerVaultPull) {
+                actualPull = takerVaultPull;
+            }
+            
+            if (actualPull > 0) {
+                vault.withdraw(_match.order0.user, takerFromToken, actualPull, address(this));
+            }
         } else if (transientPhysical > neededFromTaker) {
-            // Surplus: The transient tokens alone exceed the cost.
+            // Surplus: The transient tokens alone exceed the cost. 
             // No vault pull is needed, and we return the surplus transient physical tokens securely to their vault ledger
             uint256 physicalSurplus = transientPhysical - neededFromTaker;
             IERC20(takerFromToken).safeTransfer(address(vault), physicalSurplus);
@@ -572,7 +708,18 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         }
 
         // Emit standard events
-        emit OrderMatched(takerHash, _match.order0.user, takerFromToken, effectiveMatchAmount0, calc.protocolTake0, makerHash, _match.order1.user, makerFromToken, _match.matchAmount1, calc.protocolTake1);
+        emit OrderMatched(
+            takerHash,
+            _match.order0.user,
+            takerFromToken,
+            effectiveMatchAmount0,
+            calc.protocolTake0,
+            makerHash,
+            _match.order1.user,
+            makerFromToken,
+            _match.matchAmount1,
+            calc.protocolTake1
+        );
         if (calc.order0FullyFilled) emit OrderFullyFilled(takerHash, _match.order0.user);
         if (calc.order1FullyFilled) emit OrderFullyFilled(makerHash, _match.order1.user);
     }

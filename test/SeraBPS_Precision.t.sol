@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../src/Sera.sol";
 import "../src/SeraSOR.sol";
 import "../src/mock/MockStableCoin.sol";
+import "../src/mock/MockStableCoinDecimals.sol";
 import "./TestHelper.sol";
 
 /**
@@ -82,6 +83,14 @@ contract SeraBPS_Precision_Test is TestHelper {
         // i.e. feeBps = 1_000_000 gives exactly $0.01 on a 6-dec $1M order.
         uint256 fee6DecCent = Math.mulDiv(orderAmount6Dec, 1_000_000, BPS);
         assertEq(fee6DecCent, 10000, "1e6 bps on 6-dec $1M = 10000 units = $0.01");
+    }
+
+    function test_OneCentFeeOnTenMillionUSDCOrder_True6Decimals() public pure {
+        uint256 orderAmount6Dec = 10_000_000 * 10 ** 6;
+        uint256 feeBps = 100_000;
+
+        uint256 fee = Math.mulDiv(orderAmount6Dec, feeBps, BPS);
+        assertEq(fee, 10_000, "10M USDC at feeBps=100000 should charge exactly $0.01");
     }
 
     // ========================================================================
@@ -224,6 +233,67 @@ contract SeraBPS_Precision_Test is TestHelper {
             + vault.balanceOf(address(ETH), maker)
             + vault.balanceOf(address(ETH), owner);
         assertGe(ETH.balanceOf(address(vault)), totalLedger, "Vault solvent");
+    }
+
+    function test_Settlement_TenMillionUSDC_OneCentFee_True6Decimals() public {
+        MockStableCoinDecimals USDC6 = new MockStableCoinDecimals("USDC6", 6);
+        MockStableCoin ETH18 = new MockStableCoin("ETH18");
+
+        vm.startPrank(owner);
+        _whitelistToken(sera, address(USDC6), true, 1);
+        _whitelistToken(sera, address(ETH18), true, 1);
+        vm.stopPrank();
+
+        uint256 usdcAmount = 10_000_000 * 10 ** 6;
+        uint256 ethAmount = 10_000_000 ether;
+        uint256 feeBps = 100_000;
+
+        _mintAndDeposit(taker, address(ETH18), ethAmount, sera);
+        _mintAndDeposit(maker, address(USDC6), usdcAmount, sera);
+
+        Order memory takerOrder = Order({
+            user: taker, fromToken: address(ETH18), toToken: address(USDC6),
+            fromAmount: ethAmount, toAmount: usdcAmount, initialDepositAmount: 0,
+            feeBps: uint48(feeBps), recipient: taker,
+            expiration: uint48(block.timestamp + 1 days), uuid: 10
+        });
+        Order memory makerOrder = Order({
+            user: maker, fromToken: address(USDC6), toToken: address(ETH18),
+            fromAmount: usdcAmount, toAmount: ethAmount, initialDepositAmount: 0,
+            feeBps: 0, recipient: maker,
+            expiration: uint48(block.timestamp + 1 days), uuid: 11
+        });
+
+        MatchData[] memory matches = new MatchData[](1);
+        matches[0] = MatchData(
+            takerOrder, bytes(""), ethAmount,
+            makerOrder, _signOrder(makerPK, makerOrder, sera), usdcAmount
+        );
+        bytes memory sig = _signIntent(
+            takerPK, taker, address(ETH18), address(USDC6), 0, 0, taker, 0,
+            block.timestamp, uint48(block.timestamp + 1 days), sera
+        );
+
+        vm.prank(executor);
+        sor.executeIntent(
+            matches, sig,
+            IntentParams(taker, address(ETH18), address(USDC6), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            uint8(2), 0, bytes("")
+        );
+
+        uint256 expectedFee = Math.mulDiv(usdcAmount, feeBps, BPS);
+        assertEq(expectedFee, 10_000, "Expected a one-cent fee in 6-decimal USDC units");
+
+        uint256 takerReceived = USDC6.balanceOf(taker);
+        assertEq(takerReceived, usdcAmount - expectedFee, "Taker should receive 10M USDC minus $0.01 fee");
+
+        uint256 treasuryUsdc = vault.balanceOf(address(USDC6), owner);
+        assertEq(treasuryUsdc, expectedFee, "Treasury should capture exactly 10000 raw units = $0.01");
+
+        uint256 totalLedger = vault.balanceOf(address(USDC6), taker)
+            + vault.balanceOf(address(USDC6), maker)
+            + vault.balanceOf(address(USDC6), owner);
+        assertGe(USDC6.balanceOf(address(vault)), totalLedger, "Vault solvent for 6-decimal fee token");
     }
 
     // ========================================================================

@@ -63,15 +63,22 @@ struct IntentParams {
     uint48 deadline;
 }
 
-bytes32 constant ORDER_TYPEHASH = keccak256("Order(address user,uint48 expiration,uint48 feeBps,address recipient,address fromToken,address toToken,uint256 fromAmount,uint256 toAmount,uint256 initialDepositAmount,uint256 uuid)");
+bytes32 constant ORDER_TYPEHASH = keccak256(
+    "Order(address user,uint48 expiration,uint48 feeBps,address recipient,address fromToken,address toToken,uint256 fromAmount,uint256 toAmount,uint256 initialDepositAmount,uint256 uuid)"
+);
 
 // NOTE: Named 'INTENT_TYPEHASH' for legacy reasons — this refers to the SOR parameters type hash.
-bytes32 constant INTENT_TYPEHASH = keccak256("Intent(address taker,address inputToken,address outputToken,uint256 maxInputAmount,uint256 minOutputAmount,address recipient,uint256 initialDepositAmount,uint256 uuid,uint48 deadline)");
+bytes32 constant INTENT_TYPEHASH = keccak256(
+    "Intent(address taker,address inputToken,address outputToken,uint256 maxInputAmount,uint256 minOutputAmount,address recipient,uint256 initialDepositAmount,uint256 uuid,uint48 deadline)"
+);
 
 // NOTE: Named 'WITHDRAW_INTENT_TYPEHASH' for legacy reasons — this refers to the SOR withdrawal type hash.
-bytes32 constant WITHDRAW_INTENT_TYPEHASH = keccak256("WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)");
+bytes32 constant WITHDRAW_INTENT_TYPEHASH = keccak256(
+    "WithdrawIntent(address user,address[] tokens,uint256[] amounts,address recipient,uint256 deadline,uint256 uuid)"
+);
 
-// Fee denominator (100% = 1e14). Largest power-of-10 fitting uint48.
+// Fee denominator (100% = 1e14). Largest power-of-10 that fits in uint48 (max ~2.81e14).
+// feeBps=1 on a $1M/6-decimal order yields $0.01 at 1e8 granularity within this base.
 uint256 constant BPS_DENOMINATOR = 100_000_000_000_000;
 
 /**
@@ -80,20 +87,41 @@ uint256 constant BPS_DENOMINATOR = 100_000_000_000_000;
  */
 library SeraLib {
     function getOrderHashCalldata(Order calldata order) internal pure returns (bytes32) {
-        return keccak256(abi.encode(ORDER_TYPEHASH, order.user, order.expiration, order.feeBps, order.recipient, order.fromToken, order.toToken, order.fromAmount, order.toAmount, order.initialDepositAmount, order.uuid));
+        return keccak256(
+            abi.encode(
+                ORDER_TYPEHASH,
+                order.user,
+                order.expiration,
+                order.feeBps,
+                order.recipient,
+                order.fromToken,
+                order.toToken,
+                order.fromAmount,
+                order.toAmount,
+                order.initialDepositAmount,
+                order.uuid
+            )
+        );
     }
+
 
     /**
      * @notice Compute execution values and enforce pricing constraints
      */
-    function _executionValues(MatchData calldata _match, uint256 effectiveAmount0, uint256 effectiveAmount1) internal pure returns (uint256 executionValue0, uint256 executionValue1) {
+    function _executionValues(MatchData calldata _match, uint256 effectiveAmount0, uint256 effectiveAmount1)
+        internal
+        pure
+        returns (uint256 executionValue0, uint256 executionValue1)
+    {
         // amount upper bounds are already validated in `_validateOrderCommon` before this is invoked
 
         // executionValue0 = Amount of "toToken" (order1.fromToken) that order0 expects for the given effectiveAmount0
-        executionValue0 = Math.mulDiv(effectiveAmount0, _match.order0.toAmount, _match.order0.fromAmount, Math.Rounding.Ceil);
+        executionValue0 =
+            Math.mulDiv(effectiveAmount0, _match.order0.toAmount, _match.order0.fromAmount, Math.Rounding.Ceil);
 
         // executionValue1 = Amount of "toToken" (order0.fromToken) that order1 expects for the given effectiveAmount1
-        executionValue1 = Math.mulDiv(effectiveAmount1, _match.order1.toAmount, _match.order1.fromAmount, Math.Rounding.Ceil);
+        executionValue1 =
+            Math.mulDiv(effectiveAmount1, _match.order1.toAmount, _match.order1.fromAmount, Math.Rounding.Ceil);
 
         if (effectiveAmount1 < executionValue0 || effectiveAmount0 < executionValue1) revert InvalidCostAmount();
     }
