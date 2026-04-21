@@ -232,6 +232,11 @@ contract SeraBatcherTest is TestHelper {
         );
 
         emit SeraBatcher.MatchFailed(h0, h1, abi.encodeWithSelector(Sera.OrderFilledAmountExceeded.selector), 3);
+
+        // Expect BatchExecuted summary event (attempted = 2 atomics + 2 singles + 0 intents = 4, failedMask = 10)
+        vm.expectEmit(false, false, false, true);
+        emit SeraBatcher.BatchExecuted(4, 10);
+
         SeraBatcher.IntentExecution[] memory intents = new SeraBatcher.IntentExecution[](0);
         uint256 failedMask = batcher.batchMatchMixed(atomics, singles, intents, type(uint256).max);
 
