@@ -86,10 +86,10 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         _mintAndDeposit(maker1, address(bToken), 1000 ether, sera);
 
         Order memory tOrder = _makeOrder(taker, address(aToken), address(bToken), 1000 ether, 100 ether, 1);
-        tOrder.feeBps = feeBpsTaker;
+        tOrder.feeBps = uint48(feeBpsTaker);
 
         Order memory mOrder = _makeOrder(maker1, address(bToken), address(aToken), 100 ether, 800 ether, 2);
-        mOrder.feeBps = feeBpsMaker;
+        mOrder.feeBps = uint48(feeBpsMaker);
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), 1000 ether, mOrder, _signOrder(maker1PK, mOrder, sera), 100 ether);
@@ -298,9 +298,9 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         _mintAndDeposit(maker1, address(bToken), 1000 ether, sera);
 
         Order memory tOrder = _makeOrder(taker, address(aToken), address(bToken), 1000 ether, 100 ether, 1);
-        tOrder.feeBps = tFee;
+        tOrder.feeBps = uint48(tFee);
         Order memory mOrder = _makeOrder(maker1, address(bToken), address(aToken), 100 ether, 500 ether, 2);
-        mOrder.feeBps = mFee;
+        mOrder.feeBps = uint48(mFee);
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), 1000 ether, mOrder, _signOrder(maker1PK, mOrder, sera), 100 ether);
@@ -354,21 +354,21 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
 
         uint256 l1To = takerAmount / 2;
         Order memory tOrder1 = _makeOrder(taker, address(aToken), address(bToken), takerAmount, l1To, 1);
-        tOrder1.feeBps = feeTaker; tOrder1.recipient = address(sera);
+        tOrder1.feeBps = uint48(feeTaker); tOrder1.recipient = address(sera);
         Order memory mOrder1 = _makeOrder(maker1, address(bToken), address(aToken), l1To, takerAmount, 2);
-        mOrder1.feeBps = feeM1;
+        mOrder1.feeBps = uint48(feeM1);
 
         // Leg 2 - Transient execution limits set to infinity to allow any fee/spread intersection
         Order memory tOrder2 = _makeOrder(taker, address(bToken), address(cToken), type(uint128).max, 1, 3);
-        tOrder2.feeBps = feeTaker; tOrder2.recipient = address(sera);
+        tOrder2.feeBps = uint48(feeTaker); tOrder2.recipient = address(sera);
         Order memory mOrder2 = _makeOrder(maker2, address(cToken), address(bToken), l1To, 1, 4); // maker gives enough depth (l1To is large)
-        mOrder2.feeBps = feeM2;
+        mOrder2.feeBps = uint48(feeM2);
 
         // Leg 3
         Order memory tOrder3 = _makeOrder(taker, address(cToken), address(dToken), type(uint128).max, 1, 5);
-        tOrder3.feeBps = feeTaker;
+        tOrder3.feeBps = uint48(feeTaker);
         Order memory mOrder3 = _makeOrder(maker3, address(dToken), address(cToken), l1To, 1, 6);
-        mOrder3.feeBps = feeM3;
+        mOrder3.feeBps = uint48(feeM3);
 
         MatchData[] memory matches = new MatchData[](3);
         matches[0] = MatchData(tOrder1, bytes(""), takerAmount, mOrder1, _signOrder(maker1PK, mOrder1, sera), l1To);
@@ -531,7 +531,7 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         uint256 supplyB_before = bToken.totalSupply();
 
         Order memory tOrder = _makeOrder(taker, address(aToken), address(bToken), takerAmount, takerAmount / 2, 1);
-        tOrder.feeBps = fee;
+        tOrder.feeBps = uint48(fee);
         Order memory mOrder = _makeOrder(maker1, address(bToken), address(aToken), takerAmount / 2, takerAmount / 2, 2);
 
         MatchData[] memory matches = new MatchData[](1);
@@ -658,9 +658,9 @@ contract SeraSOR_AdvancedFuzz_Test is TestHelper {
         uint256 supplyB = bToken.totalSupply();
 
         Order memory tOrder = _makeOrder(taker, address(aToken), address(bToken), amount, amount / 5, 1);
-        tOrder.feeBps = tFee;
+        tOrder.feeBps = uint48(tFee);
         Order memory mOrder = _makeOrder(maker1, address(bToken), address(aToken), amount / 5, amount / 2, 2);
-        mOrder.feeBps = mFee;
+        mOrder.feeBps = uint48(mFee);
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(tOrder, bytes(""), amount, mOrder, _signOrder(maker1PK, mOrder, sera), amount / 5);

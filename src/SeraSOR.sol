@@ -35,7 +35,9 @@ contract SeraSOR is SeraBase {
 
     // ============ Events ============
     event IntentMatched(bytes32 indexed intentHash, address indexed taker, uint256 legCount); // NOTE: 'intent' refers to SOR execution
-    event IntentLegMatched(bytes32 indexed intentHash, uint256 indexed legIndex, bytes32 takerOrderHash, bytes32 makerOrderHash); // NOTE: 'intent' refers to SOR execution
+    event IntentLegMatched(
+        bytes32 indexed intentHash, uint256 indexed legIndex, bytes32 takerOrderHash, bytes32 makerOrderHash
+    ); // NOTE: 'intent' refers to SOR execution
 
     /// @notice Upper bound to protect against pathological gas usage
     uint256 public constant MAX_ROUTE_LEGS = 20;
@@ -53,7 +55,18 @@ contract SeraSOR is SeraBase {
      * @param intent Signed SOR parameters (see IntentParams struct in SeraLib.sol)
      * @param uniqueTokenCount Hint for transient balance hash table sizing
      */
-    function executeIntent(MatchData[] calldata matches, bytes calldata intentSignature, IntentParams calldata intent, uint8 uniqueTokenCount, uint256 permitDeadline, bytes calldata permitSignature) external onlySeraRole(EXECUTOR_ROLE_CACHED) whenNotPaused {
+    function executeIntent(
+        MatchData[] calldata matches,
+        bytes calldata intentSignature,
+        IntentParams calldata intent,
+        uint8 uniqueTokenCount,
+        uint256 permitDeadline,
+        bytes calldata permitSignature
+    )
+        external
+        onlySeraRole(EXECUTOR_ROLE_CACHED)
+        whenNotPaused
+    {
         if (block.timestamp > intent.deadline) revert MatchExpired();
         if (matches.length == 0) revert EmptyRoute();
         if (matches.length > MAX_ROUTE_LEGS) revert TooManyLegs();
@@ -62,8 +75,8 @@ contract SeraSOR is SeraBase {
         address takerUser = _validateAndConsumeIntent(intentSignature, intent);
 
         // 2. Transient balance tracking for intermediate tokens
-        // It maps token > amount fully in memory keeping it extremely affordable
-        // We don't use transient storage due to gas cost. This is the cheapest way.
+		// It maps token > amount fully in memory keeping it extremely affordable
+		// We don't use transient storage due to gas cost. This is the cheapest way.
         uint256 tableSize = uint256(uniqueTokenCount) * 2 + 1;
         address[] memory transientTokens = new address[](tableSize);
         uint256[] memory transientAmounts = new uint256[](tableSize);
@@ -72,14 +85,16 @@ contract SeraSOR is SeraBase {
         // Exact wallet pull amount is committed in the intent signature — executor cannot modify
         uint256 takerInputCost = intent.initialDepositAmount;
 
-        // Verify the executor-supplied order matches the signed deposit amount
-        if (matches[0].order0.initialDepositAmount != intent.initialDepositAmount) revert InvalidRoute();
+		// Verify the executor-supplied order matches the signed deposit amount
+		if (matches[0].order0.initialDepositAmount != intent.initialDepositAmount) revert InvalidRoute();
 
-        // Taker cannot deposit more from wallet than the first leg requires
-        if (takerInputCost > matches[0].matchAmount0) revert ExcessiveInput();
+		// Taker cannot deposit more from wallet than the first leg requires
+		if (takerInputCost > matches[0].matchAmount0) revert ExcessiveInput();
 
         if (takerInputCost > 0) {
-            if (permitSignature.length > 0) _executePermit(intent.inputToken, takerUser, address(this), takerInputCost, permitDeadline, permitSignature);
+            if (permitSignature.length > 0) {
+                _executePermit(intent.inputToken, takerUser, address(this), takerInputCost, permitDeadline, permitSignature);
+            }
             // Pull directly from the taker's wallet to the Sera matching engine
             IERC20(intent.inputToken).safeTransferFrom(takerUser, address(sera), takerInputCost);
             _addTransientBalance(transientTokens, transientAmounts, tableSize, intent.inputToken, takerInputCost);
@@ -96,7 +111,9 @@ contract SeraSOR is SeraBase {
             if (m.order0.user != takerUser) revert InvalidRoute();
 
             // Resolve effective fill amount (sentinel = consume all transient)
-            (uint256 effectiveAmount0, uint256 takerVaultPull) = _consumeTransientBalance(transientTokens, transientAmounts, tableSize, m.order0.fromToken, m.matchAmount0);
+            (uint256 effectiveAmount0, uint256 takerVaultPull) = _consumeTransientBalance(
+                transientTokens, transientAmounts, tableSize, m.order0.fromToken, m.matchAmount0
+            );
 
             // Only the intent's input token may be pulled from the taker's vault.
             // Intermediate legs MUST be fully covered by transient balances.
@@ -110,10 +127,13 @@ contract SeraSOR is SeraBase {
             if (holdTakerOutput && i == matches.length - 1) revert InvalidRoute();
 
             // Settle via Sera — pass effectiveAmount0 so sentinel MUST NOT reach Sera
-            (uint256 takerReceives, bytes32 takerHash, bytes32 makerHash) = sera.settleRoutedLeg(m, takerVaultPull, holdTakerOutput, effectiveAmount0);
+            (uint256 takerReceives, bytes32 takerHash, bytes32 makerHash) =
+                sera.settleRoutedLeg(m, takerVaultPull, holdTakerOutput, effectiveAmount0);
 
-            // If we hold the taker's output of this leg, we add it to the transient balance for the next leg.
-            if (holdTakerOutput && takerReceives > 0) _addTransientBalance(transientTokens, transientAmounts, tableSize, m.order1.fromToken, takerReceives);
+			// If we hold the taker's output of this leg, we add it to the transient balance for the next leg.
+            if (holdTakerOutput && takerReceives > 0) {
+                _addTransientBalance(transientTokens, transientAmounts, tableSize, m.order1.fromToken, takerReceives);
+            }
 
             // Track aggregate taker output (terminal legs only)
             // Enforce: every terminal leg's recipient must match the signed intent recipient (diamond-safe)
@@ -140,7 +160,9 @@ contract SeraSOR is SeraBase {
         //    If tokens are accidentally stuck in Sera, admin can recover via SeraAdmin.rescueToken().
         if (matches.length > 1) {
             for (uint256 i = 0; i < tableSize;) {
-                if (transientTokens[i] != address(0) && transientAmounts[i] > 0) revert TransientBalanceNotZero(transientTokens[i], transientAmounts[i]);
+                if (transientTokens[i] != address(0) && transientAmounts[i] > 0) {
+                    revert TransientBalanceNotZero(transientTokens[i], transientAmounts[i]);
+                }
                 unchecked {
                     ++i;
                 }
@@ -157,17 +179,25 @@ contract SeraSOR is SeraBase {
      * @dev Named '_computeIntentHash' for legacy reasons — refers to SOR hash computation.
      */
     function _computeIntentHash(IntentParams calldata p) internal pure returns (bytes32) {
-        return keccak256(abi.encode(INTENT_TYPEHASH, p.taker, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline));
+        return keccak256(abi.encode(
+            INTENT_TYPEHASH, p.taker, p.inputToken, p.outputToken,
+            p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline
+        ));
     }
 
     /**
      * @notice Validate SOR signature, consume the SOR order (replay protection), and return the taker address.
      * @dev Named '_validateAndConsumeIntent' for legacy reasons — refers to SOR validation.
      */
-    function _validateAndConsumeIntent(bytes calldata signature, IntentParams calldata p) internal returns (address takerUser) {
+    function _validateAndConsumeIntent(
+        bytes calldata signature, IntentParams calldata p
+    ) internal returns (address takerUser) {
         takerUser = p.taker;
         // Validate EIP-712 signature (supports both EOA and ERC-1271 smart contract wallets)
-        bytes32 digest = sera.getIntentDigest(p.taker, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount, p.recipient, p.initialDepositAmount, p.uuid, p.deadline);
+        bytes32 digest = sera.getIntentDigest(
+            p.taker, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount,
+            p.recipient, p.initialDepositAmount, p.uuid, p.deadline
+        );
         if (!SignatureChecker.isValidSignatureNowCalldata(takerUser, digest, signature)) {
             revert Sera.InvalidSignature();
         }
@@ -176,7 +206,13 @@ contract SeraSOR is SeraBase {
         sera.consumeIntentUuid(takerUser, p.uuid);
     }
 
-    function _consumeTransientBalance(address[] memory tokens, uint256[] memory amounts, uint256 tableSize, address token, uint256 requested) internal pure returns (uint256 effectiveAmount, uint256 remaining) {
+    function _consumeTransientBalance(
+        address[] memory tokens,
+        uint256[] memory amounts,
+        uint256 tableSize,
+        address token,
+        uint256 requested
+    ) internal pure returns (uint256 effectiveAmount, uint256 remaining) {
         uint256 idx = _findTokenSlot(tokens, tableSize, token);
 
         if (tokens[idx] != token) {
@@ -200,15 +236,27 @@ contract SeraSOR is SeraBase {
         return (requested, requested - used);
     }
 
-    function _addTransientBalance(address[] memory tokens, uint256[] memory amounts, uint256 tableSize, address token, uint256 amount) internal pure {
+    function _addTransientBalance(
+        address[] memory tokens,
+        uint256[] memory amounts,
+        uint256 tableSize,
+        address token,
+        uint256 amount
+    ) internal pure {
         uint256 idx = _findTokenSlot(tokens, tableSize, token);
-        if (tokens[idx] == address(0)) tokens[idx] = token;
+        if (tokens[idx] == address(0)) {
+            tokens[idx] = token;
+        }
         amounts[idx] += amount;
     }
 
     /// @dev INVARIANT: tableSize = (uniqueTokenCount * 2) + 1, guaranteeing >50% empty slots.
     ///      This ensures the open-addressing probe always terminates (an empty slot is always reachable).
-    function _findTokenSlot(address[] memory tokens, uint256 tableSize, address token) internal pure returns (uint256 idx) {
+    function _findTokenSlot(address[] memory tokens, uint256 tableSize, address token)
+        internal
+        pure
+        returns (uint256 idx)
+    {
         idx = uint256(uint160(token)) % tableSize;
         for (uint256 attempts = 0; attempts < tableSize; attempts++) {
             address cur = tokens[idx];
@@ -226,7 +274,14 @@ contract SeraSOR is SeraBase {
      * @notice Handle EIP-2612 permit silently to allow front-run protection
      * @dev Similar to Uniswap/Sera logic, if the signature is compact, it recovers differently.
      */
-    function _executePermit(address token, address owner, address spender, uint256 amount, uint256 deadline, bytes calldata signature) internal {
+    function _executePermit(
+        address token,
+        address owner,
+        address spender,
+        uint256 amount,
+        uint256 deadline,
+        bytes calldata signature
+    ) internal {
         uint8 v;
         bytes32 r;
         bytes32 s;
