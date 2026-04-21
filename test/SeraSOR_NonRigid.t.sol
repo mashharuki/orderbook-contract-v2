@@ -262,6 +262,9 @@ contract SeraSOR_NonRigid_Test is TestHelper {
 
     /// @notice Executor reduces matchAmount0 below fromAmount — taker pays less (positive slippage)
     function test_BuiltInPositiveSlippage_ReducedInput() public {
+        vm.prank(owner);
+        sera.setSlippageShares(2500, 2500, 5000, 10000);
+
         _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
         _mintAndDeposit(maker1, address(eth), 10 ether, sera);
 
@@ -464,6 +467,9 @@ contract SeraSOR_NonRigid_Test is TestHelper {
 
     /// @notice Sentinel + reduced input on Leg 1 — full end-to-end
     function test_DynamicFill_WithBuiltInPositiveSlippage() public {
+        vm.prank(owner);
+        sera.setSlippageShares(2500, 2500, 5000, 10000);
+
         // Taker has 1000 USDC
         _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
         _mintAndDeposit(maker1, address(eth), 10 ether, sera);
