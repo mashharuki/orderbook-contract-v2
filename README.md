@@ -40,7 +40,7 @@ For detailed documentation on integrations, architecture, and deployment, see ou
 1. **[Architecture Overview](docs/architecture.md)** — High-level integration diagrams for integration pairings, wrapper routing, and structural execution.
 2. **[Integration Guide](docs/integration_guide.md)** — Step-by-step documentation for API developers looking to craft EIP-712 deposits, orders, routes, and signature payloads. Includes full standard structures.
 3. **[Security Overview](docs/security.md)** — Documentation covering non-custodial extraction boundaries, blacklisting limitations, Reentrancy handling, and ghost liquidity.
-4. **[Deployment Guide](docs/deployment_guide.md)** — Standard operating procedures for testing locally and initializing live Web3 networks (testnet/mainnet).
+4. **[Deployment Guide](docs/deployment_guide.md)** — Standard operating procedures for testing locally and initializing hosted Web3 networks (Sepolia today, mainnet later).
 5. **[API Server Design](docs/api_server_design.md)** — Backend technical specification for API server developers (bilingual: Chinese).
 6. **[Audit FAQ](docs/audit_faq.md)** — Deliberate design choices and "gas-over-verify" patterns explained for security auditors.
 7. **[Gas Report](docs/design/gas_report.md)** — Architectural impact of transient matching and route caching.
@@ -90,7 +90,7 @@ orderbook-contract-v2/
 │   ├── SeraBPS_Precision.t.sol         # BPS denominator precision & overflow tests
 │   └── summary.md                     # Detailed test audit summary
 ├── script/
-│   ├── Deploy.s.sol              # Production deployment script
+│   ├── Deploy.s.sol              # Future mainnet deployment script
 │   ├── DeployTestnet.s.sol       # Testnet deployment script (with mock tokens)
 │   ├── DeploySepolia.s.sol       # Sepolia deployment script with verification
 │   ├── DeployAll.s.sol           # Combined deployment script

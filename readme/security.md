@@ -46,7 +46,7 @@ ERC-777 callbacks and dangerous fallback loops are effectively sandboxed.
 For legs where the taker's input is pulled from vault (`takerVaultPull > 0`), settlement computes `transientPhysical = effectiveMatchAmount0 - takerVaultPull` before the vault withdrawal. If `neededFromTaker > transientPhysical`, only the deficit is withdrawn from the vault. If the transient physical tokens alone exceed the cost, the surplus is returned to the taker's vault via `safeTransfer` + `creditLedger`. The taker's spread share remains in vault implicitly.
 
 ### Sentinel Surplus Safety Net (Intermediate Legs)
-For sentinel legs (`takerVaultPull == 0`), the input tokens are already physically in `Sera.sol` from the previous leg. Any non-zero surplus (`transientPhysical - neededFromTaker`) is returned to the taker's vault via `safeTransfer` + `creditLedger`. In production, the executor calibrates `matchAmount1` values to produce zero intermediate spread, so this safety net block is typically dead code.
+For sentinel legs (`takerVaultPull == 0`), the input tokens are already physically in `Sera.sol` from the previous leg. Any non-zero surplus (`transientPhysical - neededFromTaker`) is returned to the taker's vault via `safeTransfer` + `creditLedger`. In the intended deployed flow, the executor calibrates `matchAmount1` values to produce zero intermediate spread, so this safety net block is typically dead code.
 
 ### Transient Balance Enforcement
 If an intermediate leg produces more output than later signed legs are configured to consume, any leftover transient balance remaining at route end triggers a `TransientBalanceNotZero` revert, ensuring strict conservation of funds across the entire route.
