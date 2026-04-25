@@ -3,7 +3,9 @@ src = "src"
 out = "out"
 libs = ["lib"]
 solc_version = "0.8.24"
-optimizer = false
+# Optimizer MUST be on — without it Sera exceeds the 24576-byte EIP-170
+# contract size limit on deploy. Run-51 showed the regression (29062B).
+optimizer = true
 optimizer_runs = 200
 via_ir = true
 bytecode_hash = "none"
@@ -15,6 +17,21 @@ extra_output = []
 extra_output_files = []
 ignored_warnings_from = ["test/", "script/"]
 
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "solady/=lib/solady/"
+]
+
+[profile.release]
+# Production deploy profile: spend more bytecode to reduce steady-state gas
+# on hot execution paths without changing the audited Solidity surface.
+optimizer = true
+optimizer_runs = 100000
+via_ir = true
+evm_version = "cancun"
+bytecode_hash = "none"
+cbor_metadata = false
 remappings = [
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
@@ -38,8 +55,10 @@ ignore = []
 [rpc_endpoints]
 arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
 sepolia = "${SEPOLIA_RPC_URL}"
+mainnet = "${MAINNET_RPC_URL}"
 
 
 [etherscan]
 arbitrum_sepolia = { key = "${ETHERSCAN_KEY}", chain = 421614, api_url = "https://api.etherscan.io/v2/api?chainid=421614&module=contract&action=verify&apikey=${ETHERSCAN_KEY}", browser_url = "https://sepolia.arbiscan.io/" }
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
+mainnet = { key = "${ETHERSCAN_API_KEY}", chain = 1 }

@@ -18,6 +18,13 @@ contract DeployScript is Script {
         // Optional: Pre-deployed Compound Timelock address for admin transfer
         address timelockAddress = vm.envOr("TIMELOCK_ADDRESS", address(0));
 
+        // Guard: if a timelock was specified, it must already be deployed.
+        // A typo here would silently leave governance orphaned after the
+        // deployer renounces DEFAULT_ADMIN_ROLE at the end of this script.
+        if (timelockAddress != address(0)) {
+            require(timelockAddress.code.length > 0, "Deploy: TIMELOCK_ADDRESS has no code");
+        }
+
         vm.startBroadcast(deployerPrivateKey);
 
         // 部署 Vault 合约
@@ -67,6 +74,14 @@ contract DeployScript is Script {
             vault.renounceRole(DEFAULT_ADMIN, deployer);
             sera.renounceRole(DEFAULT_ADMIN, deployer);
             console.log("Renounced deployer admin. Timelock is now sole admin.");
+
+            // Post-conditions: deployer must no longer hold DEFAULT_ADMIN on either
+            // contract, and the timelock must hold it on both. If any of these fail
+            // the whole broadcast reverts, preventing a half-transferred deploy.
+            require(!vault.hasRole(DEFAULT_ADMIN, deployer), "Deploy: vault deployer still admin");
+            require(!sera.hasRole(DEFAULT_ADMIN, deployer), "Deploy: sera deployer still admin");
+            require(vault.hasRole(DEFAULT_ADMIN, timelockAddress), "Deploy: vault timelock missing admin");
+            require(sera.hasRole(DEFAULT_ADMIN, timelockAddress), "Deploy: sera timelock missing admin");
         }
 
         vm.stopBroadcast();
