@@ -35,15 +35,12 @@ This repository contains **Solidity + Foundry** based order book matching contra
 ---
 
 ## Modular Documentation Index
-For detailed documentation on integrations, architecture, and deployment, see our comprehensive guides in the `docs/` folder:
+For detailed documentation on integrations, architecture, and security, see the guides in the `readme/` folder:
 
-1. **[Architecture Overview](docs/architecture.md)** — High-level integration diagrams for integration pairings, wrapper routing, and structural execution.
-2. **[Integration Guide](docs/integration_guide.md)** — Step-by-step documentation for API developers looking to craft EIP-712 deposits, orders, routes, and signature payloads. Includes full standard structures.
-3. **[Security Overview](docs/security.md)** — Documentation covering non-custodial extraction boundaries, blacklisting limitations, Reentrancy handling, and ghost liquidity.
-4. **[Deployment Guide](docs/deployment_guide.md)** — Standard operating procedures for testing locally and initializing hosted Web3 networks (Sepolia today, mainnet later).
-5. **[API Server Design](docs/api_server_design.md)** — Backend technical specification for API server developers (bilingual: Chinese).
-6. **[Audit FAQ](docs/audit_faq.md)** — Deliberate design choices and "gas-over-verify" patterns explained for security auditors.
-7. **[Gas Report](docs/design/gas_report.md)** — Architectural impact of transient matching and route caching.
+1. **[Architecture Overview](readme/architecture.md)** — High-level integration diagrams for integration pairings, wrapper routing, and structural execution.
+2. **[Security Overview](readme/security.md)** — Documentation covering non-custodial extraction boundaries, blacklisting limitations, Reentrancy handling, and ghost liquidity.
+3. **[Audit FAQ](readme/audit_faq.md)** — Deliberate design choices and "gas-over-verify" patterns explained for security auditors.
+4. **[Test Suite Summary](test/summary.md)** — Detailed audit summary of every test suite, counts, and assertions.
 
 ---
 
@@ -61,7 +58,8 @@ orderbook-contract-v2/
 │   ├── interface/
 │   │   └── IVault.sol        # Vault interface
 │   └── mock/
-│       └── MockStableCoin.sol # Testing ERC20 token
+│       ├── MockStableCoin.sol         # Testing ERC20 token (18 decimals)
+│       └── MockStableCoinDecimals.sol # Testing ERC20 with configurable decimals (6/18-dec mixes)
 ├── test/
 │   ├── TestHelper.sol
 │   ├── Sera.t.sol
@@ -69,41 +67,44 @@ orderbook-contract-v2/
 │   ├── SeraRoute.t.sol
 │   ├── SeraFuzz.t.sol
 │   ├── SeraInvariant.t.sol
+│   ├── SeraInvariant034.t.sol         # Vault solvency invariant fuzzing
 │   ├── SeraAuditCoverage.t.sol
 │   ├── SeraCoverageExtras.t.sol
-│   ├── SeraSOR_NonRigid.t.sol      # Core SOR sentinel & routing
-│   ├── SeraSOR_AttackVector.t.sol   # Security & attack vectors
-│   ├── SeraSOR_Extreme.t.sol        # Extreme spread, fees & dust
-│   ├── SeraSOR_EdgeCase.t.sol       # Edge cases & emergency controls
-│   ├── SeraSOR_Precision.t.sol      # Precision & arithmetic
-│   ├── SeraSOR_AdvancedFuzz.t.sol   # Fuzz tests
-│   ├── SeraSOR_Topology.t.sol       # Extreme topologies
-│   ├── SeraSOR_Settlement.t.sol        # Settlement optimization
-│   ├── SeraSOR_SettlementStress.t.sol  # Settlement stress tests
+│   ├── SeraSOR_NonRigid.t.sol         # Core SOR sentinel & routing
+│   ├── SeraSOR_AttackVector.t.sol     # Security & attack vectors
+│   ├── SeraSOR_Extreme.t.sol          # Extreme spread, fees & dust
+│   ├── SeraSOR_EdgeCase.t.sol         # Edge cases & emergency controls
+│   ├── SeraSOR_Precision.t.sol        # Precision & arithmetic
+│   ├── SeraSOR_AdvancedFuzz.t.sol     # Fuzz tests
+│   ├── SeraSOR_Topology.t.sol         # Extreme topologies
+│   ├── SeraSOR_Settlement.t.sol       # Settlement optimization
+│   ├── SeraSOR_SettlementStress.t.sol # Settlement stress tests
 │   ├── SeraSOR_Positive_Slippage.t.sol # Positive slippage PoC (stub)
-│   ├── SeraSOR_Permit.t.sol            # EIP-2612 permit integration tests
-│   ├── SeraSOR_DeepAudit.t.sol         # Deep audit PoC validations
-│   ├── SeraSOR_CoverageGaps.t.sol      # Coverage gap tests (diamond, wallet funding)
-│   ├── SeraSOR_AttackerSteal.t.sol     # Output hijacking fix validation
-│   ├── SeraEIP1271.t.sol               # EIP-1271 smart contract wallet signature tests
-│   ├── Sera_FullCoverage.t.sol         # Full coverage suite (51 tests)
-│   ├── SeraBPS_Precision.t.sol         # BPS denominator precision & overflow tests
+│   ├── SeraSOR_Permit.t.sol           # EIP-2612 permit integration tests
+│   ├── SeraSOR_DeepAudit.t.sol        # Deep audit PoC validations
+│   ├── SeraSOR_CoverageGaps.t.sol     # Coverage gap tests (diamond, wallet funding)
+│   ├── SeraSOR_AttackerSteal.t.sol    # Output hijacking fix validation
+│   ├── SeraEIP1271.t.sol              # EIP-1271 smart contract wallet signature tests
+│   ├── Sera7702.t.sol                 # EIP-7702 delegated-EOA signature tests
+│   ├── Sera_FullCoverage.t.sol        # Full coverage suite
+│   ├── SeraBPS_Precision.t.sol        # BPS denominator precision & overflow tests
 │   └── summary.md                     # Detailed test audit summary
 ├── script/
-│   ├── Deploy.s.sol              # Future mainnet deployment script
+│   ├── Deploy.s.sol              # Mainnet deployment script (timelock-aware)
 │   ├── DeployTestnet.s.sol       # Testnet deployment script (with mock tokens)
 │   ├── DeploySepolia.s.sol       # Sepolia deployment script with verification
-│   ├── DeployAll.s.sol           # Combined deployment script
+│   ├── DeployAll.s.sol           # Combined deployment script (Vault + Sera only)
 │   ├── DeployLocal.s.sol         # Local development deployment
-│   └── LiveSubgraphValidation.s.sol # Live subgraph validation script
-├── docs/                     # Detailed modular documentation
+│   └── update-env.sh             # Helper for updating .env after a deploy run
+├── compound-timelock/        # Isolated 0.5.16 sub-project compiling the Compound/Uniswap Timelock bytecode
+│   ├── foundry.toml
+│   └── src/
+│       ├── Timelock.sol
+│       └── SafeMath.sol
+├── readme/                   # Modular documentation
 │   ├── architecture.md       # Integration diagrams
-│   ├── integration_guide.md  # API Order flows
-│   ├── security.md           # Guard rails and Governance
-│   ├── deployment_guide.md   # Setup procedures
-│   ├── api_server_design.md  # Backend technical specification (bilingual)
-│   ├── audit_faq.md          # Deliberate design choices for auditors
-│   └── design/gas_report.md  # Optimization tracking
+│   ├── security.md           # Guard rails and governance
+│   └── audit_faq.md          # Deliberate design choices for auditors
 └── README.md                 # This file
 ```
 
@@ -150,11 +151,28 @@ See [web3-relayer/README.md](../web3-relayer/README.md) for details.
 forge coverage
 ```
 
+### Deploy
+
+Copy `.env.example` to `.env` and fill in `PRIVATE_KEY`, `*_RPC_URL`, and (for mainnet) `TIMELOCK_ADDRESS` after deploying the Compound timelock from `compound-timelock/`. Then:
+
+```shell
+# Local anvil
+forge script script/DeployLocal.s.sol:DeployLocal --rpc-url $LOCAL_RPC_URL --broadcast
+
+# Sepolia (with verification)
+forge script script/DeploySepolia.s.sol --rpc-url $SEPOLIA_RPC_URL --broadcast --verify
+
+# Mainnet (transfers admin to TIMELOCK_ADDRESS and renounces deployer admin)
+forge script script/Deploy.s.sol:DeployScript --rpc-url $MAINNET_RPC_URL --broadcast --verify
+```
+
+`Deploy.s.sol` requires `TIMELOCK_ADDRESS` to point at deployed bytecode; the script reverts otherwise so governance is never orphaned after the deployer renounces `DEFAULT_ADMIN_ROLE`.
+
 ---
 
 ## Documentation
 
-All documentation and diagrams have been moved to the `docs/` folder. For integration guidance, architecture outlines, or API models, reference the Modular Documentation Index above.
+All documentation lives in the `readme/` folder. For architecture diagrams, security overview, and audit-facing design notes, reference the Modular Documentation Index above. Detailed test-suite audit notes live in [`test/summary.md`](test/summary.md).
 
 ---
 
@@ -190,7 +208,8 @@ All documentation and diagrams have been moved to the `docs/` folder. For integr
 - Cached `trackedBalance` in `Vault.sol` to avoid double SLOADs
 - `creditLedger` now relies on a documented push-then-credit invariant, removing the old surplus check and avoiding future TOCTOU-style multi-trader races
 
-### Cleanup
+### Governance
 
-- Removed deprecated `SeraLens`, `SeraMulticall`, and `Timelock` contracts
-- Removed unused Compound remapping/submodule references
+- **Compound Timelock Scaffold**: The repo ships an isolated sub-project under `compound-timelock/` that builds the original Compound/Uniswap `Timelock.sol` (Solidity 0.5.16) so the deployed bytecode matches the battle-tested governance timelock used by Uniswap and others. `Deploy.s.sol` reads `TIMELOCK_ADDRESS` from the environment and, if set, transfers `DEFAULT_ADMIN_ROLE` on both `Vault` and `Sera` to that address before renouncing the deployer's admin (with post-condition asserts so a half-transferred deploy cannot succeed).
+- **`SeraLens` and `SeraMulticall`**: Previously removed; not part of the current deployment.
+- **EIP-1271 / EIP-7702 Signers**: Maker, taker, and instant-withdraw signature paths all flow through OpenZeppelin's `SignatureChecker`, so smart-contract wallets (Safe, Argent, ERC-4337) and 7702-delegated EOAs are first-class signers.
