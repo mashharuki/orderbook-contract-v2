@@ -1,6 +1,6 @@
 # SOR Test Suite — Detailed Audit Summary
 
-**297 tests passing** across 22 test suites, including fuzz and invariant suites. This document expands the SOR-focused audit suites in detail, records the re-audit additions, and uses the latest full `forge test` run as the source of truth for total counts.
+**321 tests** across 25 test suites (counted as `function test*` + `function invariant_*` declarations across `test/*.t.sol`), including fuzz, invariant, EIP-1271, and EIP-7702 suites. This document expands the SOR-focused audit suites in detail, records the re-audit additions, and uses the test files as the source of truth.
 
 ## Glossary
 
@@ -33,26 +33,31 @@
 11. [Output Hijacking Fix](#11-output-hijacking-fix-serasor_attackerstealtsol--2-tests)
 12. [Deep Audit PoCs](#12-deep-audit-pocs-serasor_deepaudittsol--14-tests)
 13. [Coverage Gaps](#13-coverage-gaps-serasor_coveragegapstsol--6-tests)
-14. [BPS Precision](#14-bps-precision-serabps_precisiontsol--13-tests)
+14. [BPS Precision](#14-bps-precision-serabps_precisiontsol--15-tests)
+15. [Smart-Contract Wallet Signers (EIP-1271)](#15-smart-contract-wallet-signers-seraeip1271tsol--8-tests)
+16. [EIP-7702 Delegated EOAs](#16-eip-7702-delegated-eoas-sera7702tsol--9-tests)
+17. [Issue-034 Vault Solvency Invariant](#17-issue-034-vault-solvency-invariant-serainvariant034tsol--3-tests)
 
 ---
 
-## Re-audit Additions (March 2026)
+## Re-audit Additions
 
-The suite was already strong on routing math, zero-dust invariants, replay protection, and topology stress. The remaining re-audit addition kept in scope here is the terminal-recipient binding regression below.
+The suite was already strong on routing math, zero-dust invariants, replay protection, and topology stress. Recent additions:
 
 | Suite | Test | Why added | What it proves |
 |------|------|-----------|----------------|
 | `SeraSOR_AttackerSteal.t.sol` | `test_ExecutorCannotRedirectTerminalRecipient_RevertsInvalidRoute` | The file had a placeholder comment but no direct terminal-recipient redirection test. | Executor cannot swap a signed terminal recipient for an attacker-controlled address. |
+| `SeraInvariant034.t.sol` | `invariant_solvency_closedUserSet`, `invariant_auxContractsHaveZeroLedger`, `test_spreadPathFires` | E2E issue 034 (vault insolvency) requested an explicit closed-user-set invariant fuzzer. | `IERC20.balanceOf(vault) >= Σ vault.balanceOf(token, user)` over `{actors, treasury}` for every external entry on Vault + Sera + SOR + Batcher with non-zero fees and SOR routing enabled. |
+| `Sera7702.t.sol` | 9 tests covering self-delegate + session-key paths for makers, SOR takers, and instant-withdraw flows. | EIP-7702 delegated EOAs need to sign through `SignatureChecker.isValidSignatureNowCalldata()` (which falls through to ERC-1271 on the delegated code). | 7702 EOAs sign as themselves (self-delegate) or via session keys backed by the delegate; rejecting delegates or wrong signers reverts cleanly. |
 
 ---
 
 ## Additional Passing Suites
 
-The full 297-test count also includes passing suites that are not expanded section-by-section below:
+The full 321-test count also includes passing suites that are not expanded section-by-section below:
 
-| Suite | Passing tests |
-|------|---------------|
+| Suite | Tests |
+|------|-------|
 | `Sera_FullCoverage.t.sol` | 51 |
 | `Sera.t.sol` | 21 |
 | `SeraBatcher.t.sol` | 19 |
@@ -328,22 +333,71 @@ Tests specifically written to cover complex missing pathing logic, including wal
 
 ---
 
-## 14. BPS Precision (`SeraBPS_Precision.t.sol` — 13 tests)
+## 14. BPS Precision (`SeraBPS_Precision.t.sol` — 15 tests)
 
 Tests specifically validating the expanded `BPS_DENOMINATOR = 1e14` fee precision, overflow safety, and sub-basis-point granularity.
 
 | # | Test | Category | Validation |
 |---|------|----------|------------|
-| 1 | `test_BPS_Denominator_Value` | Math | Confirms `BPS_DENOMINATOR == 100_000_000_000_000` (1e14). |
-| 2 | `test_BPS_100Percent_Equals_Denominator` | Math | `mulDiv(amount, 1e14, 1e14) == amount` — 100% fee returns full amount. |
-| 3 | `test_BPS_1Percent_Precision` | Precision | `mulDiv(1000e18, 1e12, 1e14) == 10e18` — 1% fee on 1000 tokens = 10. |
-| 4 | `test_BPS_SubBasisPoint_6Decimal` | Precision | `feeBps = 1_000_000` on $1M (6-dec) yields exactly $0.01 (10,000 units). |
-| 5 | `test_BPS_SubBasisPoint_18Decimal` | Precision | `feeBps = 1_000_000` on 1M×1e18 yields 1e16 wei ($0.01 equivalent). |
-| 6 | `test_BPS_MaxUint256_NoOverflow` | Overflow | `mulDiv(type(uint256).max, 1e14, 1e14) == type(uint256).max`. |
-| 7 | `test_BPS_MaxUint256_SmallFee_NoOverflow` | Overflow | `mulDiv(type(uint256).max, 1, 1e14)` returns a clean value without overflow. |
-| 8 | `test_BPS_LargeAmount_HighFee_NoOverflow` | Overflow | `mulDiv(type(uint128).max, 99_999_999_999_999, 1e14)` produces correct result. |
-| 9 | `test_BPS_ZeroFee` | Bounds | `mulDiv(amount, 0, 1e14) == 0` — zero fee produces zero. |
-| 10 | `test_BPS_MaxFee` | Bounds | `mulDiv(amount, 1e14, 1e14) == amount` — max fee captures entire amount. |
-| 11 | `test_BPS_MinimumNonZeroFee` | Bounds | `mulDiv(1e14, 1, 1e14) == 1` — smallest non-zero fee on smallest qualifying amount. |
-| 12 | `test_BPS_E2E_SettlementWithNewDenominator` | E2E | Full settlement with `feeBps = 1e12` (1%) on both sides. Vault solvency + zero dust verified. |
-| 13 | `testFuzz_BPS_FeeNeverExceedsAmount` | Fuzz | For random `(amount, feeBps)` where `feeBps ≤ 1e14`: `mulDiv(amount, feeBps, 1e14) ≤ amount`. |
+| 1 | `test_OneCentFeeOnMillionDollarOrder` | Precision | `feeBps = 1_000_000` on $1M (18-dec) yields ~$0.01 equivalent. |
+| 2 | `test_OneCentFeeOnTenMillionUSDCOrder_True6Decimals` | Precision | `feeBps = 1_000` on $10M (true 6-dec USDC) yields exactly $0.01 = 10,000 units. |
+| 3 | `test_FeeGranularity` | Precision | Verifies the granularity stepping under `BPS_DENOMINATOR = 1e14`. |
+| 4 | `test_OverflowSafety_MaxAmountMaxFee` | Overflow | `mulDiv(type(uint256).max, 1e14, 1e14) == type(uint256).max`. |
+| 5 | `test_OverflowSafety_LargeAmountSmallFee` | Overflow | Large amount × small fee returns a clean value without overflow. |
+| 6 | `test_OverflowSafety_NearMaxU256` | Overflow | Near-max `uint256` amounts behave correctly under `mulDiv`. |
+| 7 | `test_ZeroFee` | Bounds | `mulDiv(amount, 0, 1e14) == 0` — zero fee produces zero. |
+| 8 | `test_MinimumNonZeroFee` | Bounds | `mulDiv(1e14, 1, 1e14) == 1` — smallest non-zero fee on smallest qualifying amount. |
+| 9 | `test_BelowMinimumFee_RoundsToZero` | Bounds | `feeBps` below the granularity threshold for the given amount rounds to zero. |
+| 10 | `test_Settlement_OneCentFee_OnChain` | E2E | Full on-chain settlement with `feeBps` chosen for $0.01 on a $1M trade. Vault solvency + zero dust verified. |
+| 11 | `test_Settlement_TenMillionUSDC_OneCentFee_True6Decimals` | E2E | Same E2E flow on a 6-decimal stablecoin path. |
+| 12 | `test_MaxFeeBps_IsExactly100Percent` | Bounds | `feeBps = 1e14` represents exactly 100% — `mulDiv` returns the full amount. |
+| 13 | `test_FeeBps_JustOverMax_Reverts` | Bounds | `feeBps > 1e14` reverts `InvalidFee` in `_validateOrderCommon`. |
+| 14 | `testFuzz_FeeNeverExceedsAmount` | Fuzz | For random `(amount, feeBps)` where `feeBps ≤ 1e14`: `mulDiv(amount, feeBps, 1e14) ≤ amount`. |
+| 15 | `testFuzz_FeeMonotonicallyIncreases` | Fuzz | For `fee1 ≤ fee2 ≤ 1e14`: `mulDiv(amount, fee1, 1e14) ≤ mulDiv(amount, fee2, 1e14)`. |
+
+---
+
+## 15. Smart-Contract Wallet Signers (`SeraEIP1271.t.sol` — 8 tests)
+
+Validates that maker, taker, and instant-withdraw signature paths route through OpenZeppelin's `SignatureChecker`, which falls through to ERC-1271 `isValidSignature()` on contract wallets (Safe, Argent, ERC-4337 accounts).
+
+| # | Test | Path | What it proves |
+|---|------|------|----------------|
+| 1 | `test_matchOrders_SmartWalletMaker` | `Sera.matchOrders` | A contract-wallet maker order signed via ERC-1271 settles cleanly. |
+| 2 | `test_matchOrders_SmartWalletBothSides` | `Sera.matchOrders` | Both taker and maker can be smart-wallet signers in the same trade. |
+| 3 | `test_matchOrders_RejectsInvalidSmartWalletSig` | `Sera.matchOrders` | A wallet that returns the non-magic value reverts `InvalidSignature`. |
+| 4 | `test_SOR_SmartWalletTaker_SingleLeg` | `SeraSOR.executeIntent` | SOR taker signed by an ERC-1271 wallet executes a single-leg route. |
+| 5 | `test_SOR_RejectsWrongSmartWalletSig` | `SeraSOR.executeIntent` | SOR rejects a signature produced by a different wallet. |
+| 6 | `test_instantWithdraw_SmartWalletUser` | `executeInstantWithdrawDualSig` | User signature can come from a contract wallet. |
+| 7 | `test_instantWithdraw_SmartWalletExecutor` | `executeInstantWithdrawDualSig` | Executor signature can come from a contract wallet. |
+| 8 | `test_instantWithdraw_SmartWalletExecutor_WrongSigner_Reverts` | `executeInstantWithdrawDualSig` | A contract executor whose `isValidSignature` rejects the digest reverts. |
+
+---
+
+## 16. EIP-7702 Delegated EOAs (`Sera7702.t.sol` — 9 tests)
+
+Validates that EOAs delegated under EIP-7702 — both self-delegated and delegating to a session-key contract — are accepted as signers across maker, SOR taker, and instant-withdraw flows. Behaviour piggybacks on `SignatureChecker`: when an EOA address has code (because of a 7702 delegation), the checker calls into the delegate's `isValidSignature`.
+
+| # | Test | Path | Setup |
+|---|------|------|-------|
+| 1 | `test_7702_Maker_SelfDelegate_ValidatesEOAKey` | maker | EOA self-delegates; ECDSA signature still validates. |
+| 2 | `test_7702_Maker_SessionKey_ValidatesViaDelegate` | maker | Delegate authorises a session key to sign on the EOA's behalf. |
+| 3 | `test_7702_Maker_ECDSA_SkippedWhenDelegateRejects` | maker | Delegate that rejects the digest reverts even if raw ECDSA recovers the EOA. |
+| 4 | `test_7702_Maker_WrongSigner_Reverts` | maker | A signature by a non-authorised key reverts. |
+| 5 | `test_7702_SOR_Taker_SelfDelegate` | SOR | Self-delegated taker signs SOR intents. |
+| 6 | `test_7702_SOR_Taker_SessionKey` | SOR | Session-key taker executes a SOR route. |
+| 7 | `test_7702_InstantWithdraw_SelfDelegate` | instant withdraw | Self-delegated user signs the withdraw intent. |
+| 8 | `test_7702_InstantWithdraw_7702Executor` | instant withdraw | Executor itself is a 7702-delegated EOA. |
+| 9 | `test_7702_InstantWithdraw_7702Executor_DelegateRejects_Reverts` | instant withdraw | Executor delegate rejects the digest → revert. |
+
+---
+
+## 17. Issue-034 Vault Solvency Invariant (`SeraInvariant034.t.sol` — 3 tests)
+
+Targeted invariant fuzz of e2e issue 034 (vault insolvency). The handler exercises every external entry point on Vault + Sera + SOR + Batcher with non-zero fees, SOR routing, and emergency / instant withdraws over a closed set of `{actors, treasury}`.
+
+| # | Test | Type | Assertion |
+|---|------|------|-----------|
+| 1 | `invariant_solvency_closedUserSet` | invariant | `IERC20(token).balanceOf(vault) >= Σ vault.balanceOf(token, user)` over the closed user set. Strict combined form of `assertVaultSolvency` + `assertVaultLedgerConservation`. |
+| 2 | `invariant_auxContractsHaveZeroLedger` | invariant | Auxiliary contracts (Sera, SeraSOR, SeraBatcher) never accumulate vault ledger balances. |
+| 3 | `test_spreadPathFires` | reachability | Verifies the fuzzer actually exercises the spread / `creditLedger` paths it claims to cover (ghost counters > 0). |
