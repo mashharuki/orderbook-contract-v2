@@ -311,7 +311,7 @@ Tests validating all security findings, edge cases, and architectural observatio
 | 8 | `test_Audit9_EmergencyWithdraw_ExpiresAfterWindow` | L-3 | Grace period accurately cuts off withdrawals beyond the 7200-block window unless re-requested. |
 | 9 | `test_Audit10_RescueToken_CannotStealTracked` | Protocol Invariant | Ensure `rescueToken` explicitly bans retrieving actively whitelisted user liquidity tokens. |
 | 10 | `test_Audit11_SlippageShares_MustSumToTotal` | Configuration | Slippage spread distribution securely sums up to exactly the 10000 Bps denominator with no loss. |
-| 11 | `test_Audit12_SingleLeg_SkipsTransientCheck` | Gas Optimization | Single-hop routes accurately skip complex `transient` tracking mechanisms while safely settling. |
+| 11 | `test_Audit12_SingleLeg_SkipsTransientCheck` | Universal Invariant | Single-hop routes pass the universal transient zero-balance check (trivially, since no balances accumulate when initialDepositAmount = 0). |
 | 12 | `test_Audit13_ZeroSpread_NoUnderflow` | Arithmetic Limits | Explicit limits and bounds mapping on exact `executionValue = matchAmount` pricing, testing 0 margin rounding. |
 | 13 | `test_Audit14_GhostLiquidity_Prevention` | Invariant | Vault properly bounds internal storage mapping to token balances preventing unbacked credits. |
 | 14 | `test_Audit15_UuidNamespace_NoCrossContamination` | UUID Space | Validation of cross-method collision prevention across `emergencyWithdraw` vs normal SOR routing logic. |

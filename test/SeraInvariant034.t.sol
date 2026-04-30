@@ -50,6 +50,7 @@ contract Sera034Handler is TestHelper {
     uint256 public ghost_twoLegSOR;
     uint256 public ghost_matchesWithFee;
     uint256 public ghost_spreadMatches;
+    uint256 public ghost_walletDepositSOR;
     uint256 public ghost_reverts;
 
     constructor(
@@ -435,6 +436,109 @@ contract Sera034Handler is TestHelper {
     }
 
     // ============================================================
+    // SOR with wallet-funded route where matchAmount0 may differ from
+    // initialDepositAmount. Exercises Option B's universal transient
+    // zero-balance check: when matchAmount0 < initialDepositAmount, the
+    // residual must trigger TransientBalanceNotZero (route reverts);
+    // when matchAmount0 == initialDepositAmount, the route succeeds;
+    // when matchAmount0 > initialDepositAmount and the taker has vault
+    // balance, the route succeeds via vault top-up.
+    //
+    // The new invariant_seraHasNoDust holds in all branches.
+    // ============================================================
+
+    function sorSingleLegWalletDeposit_VarMatch(uint256 sTaker, uint256 sMaker, uint256 deposit, uint256 matchSeed)
+        external
+    {
+        uint256 iT = sTaker % actors.length;
+        uint256 iM = sMaker % actors.length;
+        if (iT == iM) iM = (iM + 1) % actors.length;
+        address taker = actors[iT];
+        address maker = actors[iM];
+        uint256 pkTaker = actorPKs[iT];
+        uint256 pkMaker = actorPKs[iM];
+
+        uint256 bMaker = vault.balanceOf(address(tokenB), maker);
+        if (bMaker == 0) return;
+        deposit = bound(deposit, 1, bMaker);
+        // matchAmount0 spans [1, 2*deposit] so we cover the three regimes:
+        // <, ==, > deposit. The > case will pull from vault if taker has it.
+        uint256 matchAmt = bound(matchSeed, 1, deposit * 2);
+
+        // Mint to taker's wallet and approve.
+        tokenA.mint(taker, deposit);
+        vm.prank(taker);
+        tokenA.approve(address(sor), deposit);
+
+        Order memory oTaker = Order({
+            user: taker,
+            fromToken: address(tokenA),
+            toToken: address(tokenB),
+            fromAmount: matchAmt,
+            toAmount: matchAmt,
+            initialDepositAmount: deposit,
+            feeBps: 0,
+            recipient: taker,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: nextUuid++
+        });
+        Order memory oMaker = Order({
+            user: maker,
+            fromToken: address(tokenB),
+            toToken: address(tokenA),
+            fromAmount: matchAmt,
+            toAmount: matchAmt,
+            initialDepositAmount: 0,
+            feeBps: 0,
+            recipient: maker,
+            expiration: uint48(block.timestamp + 1 days),
+            uuid: nextUuid++
+        });
+
+        MatchData[] memory matches = new MatchData[](1);
+        matches[0] = MatchData({
+            order0: oTaker,
+            signature0: bytes(""),
+            matchAmount0: matchAmt,
+            order1: oMaker,
+            signature1: _signOrder(pkMaker, oMaker, sera),
+            matchAmount1: matchAmt
+        });
+
+        IntentParams memory intent = IntentParams({
+            taker: taker,
+            inputToken: address(tokenA),
+            outputToken: address(tokenB),
+            maxInputAmount: 0,
+            minOutputAmount: 0,
+            recipient: taker,
+            initialDepositAmount: deposit,
+            uuid: nextUuid++,
+            deadline: uint48(block.timestamp + 1 days)
+        });
+        bytes memory intentSig = _signIntent(
+            pkTaker,
+            taker,
+            address(tokenA),
+            address(tokenB),
+            0,
+            0,
+            taker,
+            deposit,
+            intent.uuid,
+            uint48(block.timestamp + 1 days),
+            sera
+        );
+
+        vm.prank(owner);
+        try sor.executeIntent(matches, intentSig, intent, 3, 0, bytes("")) {
+            ghost_walletDepositSOR++;
+        } catch {
+            ghost_reverts++;
+        }
+    }
+
+    // ============================================================
     // Batch match via SeraBatcher
     // ============================================================
 
@@ -564,7 +668,7 @@ contract Sera034InvariantTest is TestHelper {
 
         // Restrict the handler's selectors to the actions we defined so
         // Foundry doesn't accidentally call internal helpers.
-        bytes4[] memory selectors = new bytes4[](8);
+        bytes4[] memory selectors = new bytes4[](9);
         selectors[0] = Sera034Handler.deposit.selector;
         selectors[1] = Sera034Handler.requestWithdraw.selector;
         selectors[2] = Sera034Handler.executeWithdraw.selector;
@@ -573,6 +677,7 @@ contract Sera034InvariantTest is TestHelper {
         selectors[5] = Sera034Handler.sorTwoLeg.selector;
         selectors[6] = Sera034Handler.batchMatch.selector;
         selectors[7] = Sera034Handler.sorSingleLegWithSpread.selector;
+        selectors[8] = Sera034Handler.sorSingleLegWalletDeposit_VarMatch.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -614,6 +719,21 @@ contract Sera034InvariantTest is TestHelper {
                     vault.balanceOf(toks[t], aux[a]), 0, "aux contract has non-zero vault ledger"
                 );
             }
+        }
+    }
+
+    /// @notice Option B post-condition: address(sera) must hold zero ERC20 dust
+    /// after every successful executeIntent. The universal transient zero-balance
+    /// check ensures any wallet deposit + held leg output is fully consumed; if a
+    /// route ever leaks tokens into Sera's contract balance, this fails.
+    function invariant_seraHasNoDust() public view {
+        address[3] memory toks = [address(tokenA), address(tokenB), address(tokenC)];
+        for (uint256 t = 0; t < toks.length; t++) {
+            assertEq(
+                IERC20(toks[t]).balanceOf(address(sera)),
+                0,
+                "Sera contract holds orphaned ERC20 dust"
+            );
         }
     }
 
@@ -724,6 +844,7 @@ contract Sera034InvariantTest is TestHelper {
         console2.log("single-leg SOR:      ", handler.ghost_singleLegSOR());
         console2.log("two-leg SOR:         ", handler.ghost_twoLegSOR());
         console2.log("SOR with spread:     ", handler.ghost_spreadMatches());
+        console2.log("SOR wallet deposit:  ", handler.ghost_walletDepositSOR());
         console2.log("reverts:             ", handler.ghost_reverts());
     }
 }
