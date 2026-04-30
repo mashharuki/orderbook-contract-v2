@@ -88,9 +88,6 @@ contract SeraSOR is SeraBase {
 		// Verify the executor-supplied order matches the signed deposit amount
 		if (matches[0].order0.initialDepositAmount != intent.initialDepositAmount) revert InvalidRoute();
 
-		// Taker cannot deposit more from wallet than the first leg requires
-		if (takerInputCost > matches[0].matchAmount0) revert ExcessiveInput();
-
         if (takerInputCost > 0) {
             if (permitSignature.length > 0) {
                 _executePermit(intent.inputToken, takerUser, address(this), takerInputCost, permitDeadline, permitSignature);
@@ -155,17 +152,15 @@ contract SeraSOR is SeraBase {
         if (intent.maxInputAmount > 0 && takerInputCost > intent.maxInputAmount) revert ExcessiveInput();
         if (intent.minOutputAmount > 0 && totalTakerOutput < intent.minOutputAmount) revert InsufficientOutput();
 
-        // 4. Enforce transient zero-balance (skip for single-leg routes — no intermediates)
+        // 4. Enforce transient zero-balance: every credit (wallet deposit + held leg output)
+        //    must be matched by a debit before return.
         //    Any leftover indicates a broken route (misconfigured legs or sentinel not used).
-        //    If tokens are accidentally stuck in Sera, admin can recover via SeraAdmin.rescueToken().
-        if (matches.length > 1) {
-            for (uint256 i = 0; i < tableSize;) {
-                if (transientTokens[i] != address(0) && transientAmounts[i] > 0) {
-                    revert TransientBalanceNotZero(transientTokens[i], transientAmounts[i]);
-                }
-                unchecked {
-                    ++i;
-                }
+        for (uint256 i = 0; i < tableSize;) {
+            if (transientTokens[i] != address(0) && transientAmounts[i] > 0) {
+                revert TransientBalanceNotZero(transientTokens[i], transientAmounts[i]);
+            }
+            unchecked {
+                ++i;
             }
         }
 
