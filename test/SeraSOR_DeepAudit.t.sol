@@ -492,16 +492,15 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  SOR with single leg skips transient zero-balance check.
+    //  SOR with single leg passes the universal transient zero-balance check.
     //
-    // Root cause: Line 180 only runs the TransientBalanceNotZero check
-    //             when matches.length > 1. Single-leg routes skip it.
+    // The TransientBalanceNotZero check runs for all routes, including
+    // single-leg. Single-leg routes never accumulate transient balance
+    // (the final-leg-hold prohibition forbids holdTakerOutput on the last leg,
+    // and the wallet deposit is consumed by the leg's _consumeTransientBalance call),
+    // so the check trivially passes.
     //
-    // This is correct: Single-leg routes have no intermediate tokens.
-    // The taker's input is consumed by the match, and the output is
-    // delivered directly. No transient can be orphaned.
-    //
-    // Verify: Single-leg SOR works correctly.
+    // Verify: Single-leg SOR works correctly under the universal check.
     // ===================================================================
     function test_Audit12_SingleLeg_SkipsTransientCheck() public {
         _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
