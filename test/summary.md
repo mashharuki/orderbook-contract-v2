@@ -1,6 +1,6 @@
 # SOR Test Suite — Detailed Audit Summary
 
-**321 tests** across 25 test suites (counted as `function test*` + `function invariant_*` declarations across `test/*.t.sol`), including fuzz, invariant, EIP-1271, and EIP-7702 suites. This document expands the SOR-focused audit suites in detail, records the re-audit additions, and uses the test files as the source of truth.
+**321 tests** across 25 test suites (counted as `function test*` + `function invariant_*` declarations across `test/*.t.sol`), including fuzz, invariant, EIP-1271, and EIP-7702 suites. This document expands the SOR-focused audit suites in detail and uses the test files as the source of truth.
 
 ## Glossary
 
@@ -40,15 +40,15 @@
 
 ---
 
-## Re-audit Additions
+## Targeted Hardening Suites
 
-The suite was already strong on routing math, zero-dust invariants, replay protection, and topology stress. Recent additions:
+In addition to broad routing-math, zero-dust, replay-protection, and topology-stress coverage, the suite includes three sets of tests targeting specific invariants:
 
-| Suite | Test | Why added | What it proves |
-|------|------|-----------|----------------|
-| `SeraSOR_AttackerSteal.t.sol` | `test_ExecutorCannotRedirectTerminalRecipient_RevertsInvalidRoute` | The file had a placeholder comment but no direct terminal-recipient redirection test. | Executor cannot swap a signed terminal recipient for an attacker-controlled address. |
-| `SeraInvariant034.t.sol` | `invariant_solvency_closedUserSet`, `invariant_auxContractsHaveZeroLedger`, `test_spreadPathFires` | E2E issue 034 (vault insolvency) requested an explicit closed-user-set invariant fuzzer. | `IERC20.balanceOf(vault) >= Σ vault.balanceOf(token, user)` over `{actors, treasury}` for every external entry on Vault + Sera + SOR + Batcher with non-zero fees and SOR routing enabled. |
-| `Sera7702.t.sol` | 9 tests covering self-delegate + session-key paths for makers, SOR takers, and instant-withdraw flows. | EIP-7702 delegated EOAs need to sign through `SignatureChecker.isValidSignatureNowCalldata()` (which falls through to ERC-1271 on the delegated code). | 7702 EOAs sign as themselves (self-delegate) or via session keys backed by the delegate; rejecting delegates or wrong signers reverts cleanly. |
+| Suite | Test | What it proves |
+|------|------|----------------|
+| `SeraSOR_AttackerSteal.t.sol` | `test_ExecutorCannotRedirectTerminalRecipient_RevertsInvalidRoute` | Executor cannot swap a signed terminal recipient for an attacker-controlled address. |
+| `SeraInvariant034.t.sol` | `invariant_solvency_closedUserSet`, `invariant_auxContractsHaveZeroLedger`, `test_spreadPathFires` | `IERC20.balanceOf(vault) >= Σ vault.balanceOf(token, user)` over `{actors, treasury}` for every external entry on Vault + Sera + SOR + Batcher with non-zero fees and SOR routing enabled. |
+| `Sera7702.t.sol` | 9 tests covering self-delegate + session-key paths for makers, SOR takers, and instant-withdraw flows. | EIP-7702 EOAs sign as themselves (self-delegate) or via session keys backed by the delegate; signatures flow through `SignatureChecker.isValidSignatureNowCalldata()` and fall through to ERC-1271 on the delegated code. Rejecting delegates or wrong signers reverts cleanly. |
 
 ---
 
@@ -241,7 +241,7 @@ The full 321-test count also includes passing suites that are not expanded secti
 
 ## 9. Settlement Optimization (`SeraSOR_Settlement.t.sol` — 14 tests)
 
-Tests targeting the vault pull optimization and sentinel surplus safety net introduced in the settlement refactor.
+Tests targeting the vault pull optimization and sentinel surplus safety net.
 
 | # | Test | Category | Setup | Key Assertions |
 |---|------|----------|-------|----------------|

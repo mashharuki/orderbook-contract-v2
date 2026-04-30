@@ -57,27 +57,27 @@ Important distinction:
 
 ### SOR Hardening: Signed Recipient & Deposit Amount
 The SOR typed struct (`INTENT_TYPEHASH` — refers to SOR parameters in code) cryptographically commits to three critical fields:
-1. **`taker`** — The address of the signer (EOA or smart contract wallet). This binds the signer's identity into the EIP-712 struct, enabling EIP-1271 smart contract wallet support. The contract validates the signature against this address using `SignatureChecker.isValidSignatureNowCalldata()`, which supports both ECDSA (EOA) and ERC-1271 (contract wallet) signatures. This replaces the previous `ecrecover`-derived identity model where the taker address was implicitly recovered from the signature.
+1. **`taker`** — The address of the signer (EOA or smart contract wallet). This binds the signer's identity into the EIP-712 struct, enabling EIP-1271 smart contract wallet support. The contract validates the signature against this address using `SignatureChecker.isValidSignatureNowCalldata()`, which supports both ECDSA (EOA) and ERC-1271 (contract wallet) signatures.
 2. **`recipient`** — The address where the taker's output is delivered. Every terminal leg in the route must have its `order0.recipient` match the signed SOR `recipient`. This prevents an executor from redirecting output to an arbitrary address (output hijacking).
 3. **`initialDepositAmount`** — The exact amount to pull from the taker's wallet. The contract verifies `matches[0].order0.initialDepositAmount == intent.initialDepositAmount` (SOR parameters) and uses this as the wallet pull amount. A value of `0` means vault-only settlement. This prevents an executor from pulling more tokens from the taker's wallet than authorized.
 
 Both fields are bundled into the `IntentParams` struct (SOR parameters — see `SeraLib.sol`) and passed as a single calldata parameter to `executeIntent` (SOR execution entry point), reducing stack depth and improving readability.
 
 ## 8. Vault `creditLedger` Caller Invariant
-`Vault.creditLedger()` no longer checks physical token surplus on-chain before crediting balances. Instead, it relies on a strict caller invariant:
+`Vault.creditLedger()` does not check physical token surplus on-chain before crediting balances. Instead, it relies on a strict caller invariant:
 
 > the caller must transfer the exact token amount into the Vault before calling `creditLedger()` in the same transaction
 
-This is the pattern used by `Sera` during normal settlement and treasury sweeps. Removing the old balance-delta check eliminates a TOCTOU-style dependency on shared physical balances and makes the Vault safer if multiple contracts ever hold `TRADER_ROLE` in the future.
+This is the pattern used by `Sera` during normal settlement and treasury sweeps. Sidestepping a balance-delta check eliminates a TOCTOU-style dependency on shared physical balances and keeps the Vault safe if multiple contracts ever hold `TRADER_ROLE`.
 
 `creditLedger()` also enforces `user != address(0)` as a sanity guard to ensure no vault balance can ever be credited to the zero address, preventing irrecoverable ledger entries.
+
+This is safe under the intended architecture because:
+- `creditLedger()` is restricted to `TRADER_ROLE`
+- trusted trader contracts follow the push-then-credit flow
+- violating the invariant would create insolvency, so any future `TRADER_ROLE` integration must preserve it exactly
 
 ## 9. EIP-712 Canonical Array Encoding in `executeInstantWithdrawDualSig`
 The `WithdrawIntent` struct (SOR withdrawal request) contains an `address[]` tokens field. Per the EIP-712 specification, each `address` element in an array must be encoded as a 32-byte left-zero-padded word before hashing. Using `abi.encodePacked(address[])` would pack each address into 20 bytes, producing a hash incompatible with standard wallets (MetaMask, Rabby) and SDKs (ethers.js, viem).
 
 The implementation uses a private `_hashAddressArray()` helper that casts each address to `bytes32` before concatenating and hashing, ensuring full EIP-712 compliance and interoperability with all standard signing tools.
-
-This is safe under the intended architecture because:
-- `creditLedger()` is restricted to `TRADER_ROLE`
-- trusted trader contracts already follow the push-then-credit flow
-- violating the invariant would create insolvency, so any future `TRADER_ROLE` integration must preserve it exactly

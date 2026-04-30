@@ -1,8 +1,7 @@
 {
   "name": "sera",
   "version": "1.0.0",
-  "description": "**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**",
-  "main": "index.js",
+  "description": "Solidity smart contracts for the Sera on-chain orderbook protocol — vault custody, EIP-712 signed orders, Smart Order Routing, and dual-authorization withdrawals.",
   "directories": {
     "lib": "lib",
     "test": "test"
@@ -12,10 +11,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://lab.workingants.dev/sera-cx/orderbook-contract.git"
+    "url": "https://github.com/sera-cx/orderbook-contract-v2.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "ethereum",
+    "solidity",
+    "foundry",
+    "orderbook",
+    "dex",
+    "defi",
+    "eip-712",
+    "smart-order-routing"
+  ],
+  "author": "Working Ants Inc. (Panama)",
   "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
   "dependencies": {
   },

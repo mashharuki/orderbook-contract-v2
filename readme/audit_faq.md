@@ -268,69 +268,67 @@ This is a **deliberate design choice** to enable gasless user deposits (sponsore
 
 ---
 
-## 14. Audit Issue 3: SOR Positive Slippage Redistribution Depends on Where the Surplus Appears
+## 14. SOR Positive Slippage Redistribution Depends on Where the Surplus Appears
 
 **Location:** `SeraSOR.executeIntent()` and `Sera._calculateSettlement()`
 
 ### Observed Pattern
 
-The protocol now reverts with `TransientBalanceNotZero` if any transient balances remain at the end of a SOR route.
+The protocol reverts with `TransientBalanceNotZero` if any transient balances remain at the end of a SOR route.
 
-At first glance, this can look inconsistent with the configured slippage split, because final-leg positive slippage is shared with the taker while leftover intermediate-leg surplus may end up fully credited to the protocol treasury.
+At first glance, this can look inconsistent with the configured slippage split, because final-leg positive slippage is shared with the taker while leftover intermediate-leg surplus is not redistributed and instead causes a route-level revert.
 
-### Why This Happens
+### Why This Behavior
 
-The key distinction is whether the surplus reaches a final recipient or remains stranded in transient route state.
+The key distinction is whether the surplus reaches a final recipient or would otherwise remain stranded in transient route state.
 
 #### Scenario A: Single-leg trade
-If there is no routing, the positive slippage is distributed normally according to `SlippageShare`. The taker receives their configured share immediately.
+With no routing, positive slippage is distributed normally according to `SlippageShare`. The taker receives their configured share immediately.
 
 #### Scenario B: Final leg of a multi-leg SOR route
-The final leg behaves the same way as a normal trade. There is no downstream consumer, so the taker receives their share in the final output token or Vault balance.
+The final leg behaves the same as a normal trade. There is no downstream consumer, so the taker receives their share in the final output token or Vault balance.
 
 #### Scenario C: Intermediate leg with no leftover balance
 If the next leg consumes the entire intermediate output, nothing remains stranded. No extra treasury sweep occurs beyond the normal protocol share already charged during settlement.
 
 #### Scenario D: Intermediate leg with leftover positive surplus
-If an intermediate leg produces more output than downstream signed legs are configured to consume, the excess remains in transient route state inside `Sera`. Later legs cannot auto-resize because the route is built from statically signed order amounts. At route end, any residual transient balance triggers a `TransientBalanceNotZero` revert, ensuring strict conservation of funds.
+If an intermediate leg produces more output than downstream signed legs are configured to consume, the excess would remain in transient route state inside `Sera`. Later legs cannot auto-resize because the route is built from statically signed order amounts. At route end, any residual transient balance triggers a `TransientBalanceNotZero` revert, ensuring strict conservation of funds rather than silently stranding tokens in the contract.
 
 ### Design Tradeoff
 
 This is a deliberate pragmatic tradeoff:
-- it prevents valid routes from reverting on intermediate positive slippage
-- it prevents leftover tokens from remaining stuck in the contract (they trigger a revert)
-- it preserves the existing signed route model without a major refactor for dynamic downstream resizing
+- valid routes do not revert on intermediate positive slippage when downstream legs consume it cleanly
+- leftover tokens cannot remain stuck in the contract — they trigger a revert
+- the signed-route model stays intact without dynamic downstream resizing
 
 In practice:
 - final-leg surplus is redistributed normally
 - stranded intermediate residuals cause a `TransientBalanceNotZero` revert
 
-## 15. Audit Issue 4: Signed `initialDepositAmount` Prevents Executor-Controlled Funding Source Selection
+## 15. Signed `initialDepositAmount` Prevents Executor-Controlled Funding Source Selection
 
 **Location:** `SeraLib.Order`, `SeraLib.ORDER_TYPEHASH`, `SeraLib.getOrderHashCalldata()`, and `SeraSOR.executeIntent()`
 
 ### Observed Pattern
 
-The SOR now includes `initialDepositAmount` directly inside the signed taker `Order` struct for the first route leg.
+The SOR includes `initialDepositAmount` directly inside the signed taker `Order` struct for the first route leg.
 
-### Why This Changed
+### Why This Matters
 
-Previously, the executor could choose how much of the first-leg taker input was pulled from the user's wallet versus their Vault balance at execution time. That meant the taker did not cryptographically control the exact funding path for the route.
+If the executor were free to decide how much of the first-leg taker input came from the user's wallet versus their Vault balance, the taker would not cryptographically control the funding path of their own route. By including `initialDepositAmount` in the signed `Order` payload and `ORDER_TYPEHASH`, the taker explicitly authorizes the wallet-funded portion when signing.
 
-By moving `initialDepositAmount` into the signed `Order` payload and `ORDER_TYPEHASH`, the taker now explicitly authorizes the wallet-funded portion when signing.
-
-### Resulting Behavior
+### Behavior
 
 - if `matches[0].order0.initialDepositAmount > 0`, SOR pulls exactly that signed amount from the taker's external wallet into `Sera`
 - if `matches[0].order0.initialDepositAmount == 0`, SOR funds the route entirely from the taker's Vault balance
 - if the route needs more than the signed wallet-funded amount, the remainder is sourced from the taker's Vault balance
-- the executor can no longer arbitrarily switch a user from Vault funding to wallet funding
+- the executor cannot switch a user from Vault funding to wallet funding (or vice versa) at execution time
 
-### Why This Is the Correct Fix
+### Design Properties
 
 - no new trust assumptions are introduced
-- the user regains cryptographic control over route funding source selection
-- the fix is minimal because it reuses the existing EIP-712 order signing flow instead of introducing a second signed parameter path
+- the user retains cryptographic control over route funding source selection
+- minimal surface — reuses the existing EIP-712 order signing flow instead of adding a second signed parameter path
 
 ---
 

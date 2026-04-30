@@ -18,7 +18,7 @@ sequenceDiagram
     Frontend->>User: Prompt Wallet Signature
     User-->>Frontend: Sign EIP-712 SOR Order
     Frontend->>API: Submit Signed SOR Order
-    API->>API: Match Engine Engine Crossing
+    API->>API: Match Engine Crossing
     API->>Relayer: Enqueue Matched Orders
     Relayer->>Sera: Submit Tx (matchOrders / batch / swap)
     Sera-->>Relayer: Settle & Emit Events
