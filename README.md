@@ -1,5 +1,7 @@
 # Sera Orderbook Contract (v2)
 
+> Required Notice: Copyright 2025 Working Ants Inc. (Panama)
+
 This repository contains **Solidity + Foundry** based order book matching contracts with vault custody, EIP-712 signatures, and dual-authorization withdrawals.
 
 **Core Contracts:**
@@ -41,6 +43,7 @@ For detailed documentation on integrations, architecture, and security, see the 
 2. **[Security Overview](readme/security.md)** — Documentation covering non-custodial extraction boundaries, blacklisting limitations, Reentrancy handling, and ghost liquidity.
 3. **[Audit FAQ](readme/audit_faq.md)** — Deliberate design choices and "gas-over-verify" patterns explained for security auditors.
 4. **[Test Suite Summary](test/summary.md)** — Detailed audit summary of every test suite, counts, and assertions.
+5. **[Security Audits](audits/)** — Third-party audit reports (PDF).
 
 ---
 
@@ -96,11 +99,13 @@ orderbook-contract-v2/
 │   ├── DeployAll.s.sol           # Combined deployment script (Vault + Sera only)
 │   ├── DeployLocal.s.sol         # Local development deployment
 │   └── update-env.sh             # Helper for updating .env after a deploy run
-├── compound-timelock/        # Isolated 0.5.16 sub-project compiling the Compound/Uniswap Timelock bytecode
-│   ├── foundry.toml
-│   └── src/
-│       ├── Timelock.sol
-│       └── SafeMath.sol
+├── vendor/
+│   └── compound-timelock/    # Isolated 0.5.16 sub-project compiling the Compound/Uniswap Timelock bytecode
+│       ├── foundry.toml
+│       ├── LICENSE           # BSD-3-Clause (Compound Labs)
+│       └── src/
+│           ├── Timelock.sol
+│           └── SafeMath.sol
 ├── readme/                   # Modular documentation
 │   ├── architecture.md       # Integration diagrams
 │   ├── security.md           # Guard rails and governance
@@ -153,7 +158,7 @@ forge coverage
 
 ### Deploy
 
-Copy `.env.example` to `.env` and fill in `PRIVATE_KEY`, `*_RPC_URL`, and (for mainnet) `TIMELOCK_ADDRESS` after deploying the Compound timelock from `compound-timelock/`. Then:
+Copy `.env.example` to `.env` and fill in `PRIVATE_KEY`, `*_RPC_URL`, and (for mainnet) `TIMELOCK_ADDRESS` after deploying the Compound timelock from `vendor/compound-timelock/`. Then:
 
 ```shell
 # Local anvil
@@ -210,6 +215,38 @@ All documentation lives in the `readme/` folder. For architecture diagrams, secu
 
 ### Governance
 
-- **Compound Timelock Scaffold**: The repo ships an isolated sub-project under `compound-timelock/` that builds the original Compound/Uniswap `Timelock.sol` (Solidity 0.5.16) so the deployed bytecode matches the battle-tested governance timelock used by Uniswap and others. `Deploy.s.sol` reads `TIMELOCK_ADDRESS` from the environment and, if set, transfers `DEFAULT_ADMIN_ROLE` on both `Vault` and `Sera` to that address before renouncing the deployer's admin (with post-condition asserts so a half-transferred deploy cannot succeed).
+- **Compound Timelock Scaffold**: The repo ships an isolated sub-project under `vendor/compound-timelock/` that builds the original Compound/Uniswap `Timelock.sol` (Solidity 0.5.16) so the deployed bytecode matches the battle-tested governance timelock used by Uniswap and others. `Deploy.s.sol` reads `TIMELOCK_ADDRESS` from the environment and, if set, transfers `DEFAULT_ADMIN_ROLE` on both `Vault` and `Sera` to that address before renouncing the deployer's admin (with post-condition asserts so a half-transferred deploy cannot succeed).
 - **`SeraLens` and `SeraMulticall`**: Previously removed; not part of the current deployment.
 - **EIP-1271 / EIP-7702 Signers**: Maker, taker, and instant-withdraw signature paths all flow through OpenZeppelin's `SignatureChecker`, so smart-contract wallets (Safe, Argent, ERC-4337) and 7702-delegated EOAs are first-class signers.
+
+---
+
+## License
+
+Copyright 2025 Working Ants Inc. (Panama). All rights reserved.
+
+All first-party content in this repository — everything **except** the third-party directories listed under [Third-party components](#third-party-components) below, and the auditor-authored PDF report(s) under `audits/` — is licensed under the **PolyForm Noncommercial License 1.0.0**. This includes (without limitation) all source under `src/`, `test/`, `script/`; all documentation under `docs/`, `readme/`, and the root `README.md`; the `audits/README.md` index file; and the top-level configuration files (`foundry.toml`, `package.json`, `package-lock.json`, `.forgefmt.toml`, `.gitignore`, `.gitmodules`, `.env.example`). The full license text is in [LICENSE](./LICENSE).
+
+Audit report PDFs under `audits/` are authored by their respective auditors; copyright remains with those auditors and redistribution is governed by the underlying audit engagement — see [`audits/README.md`](./audits/README.md).
+
+This license permits use, modification, and redistribution **for any non-commercial purpose** (personal study, hobby projects, academic research, public-benefit work, government use). Commercial use is **not** permitted under this license — please contact Working Ants Inc. for a commercial license.
+
+> Required Notice: Copyright 2025 Working Ants Inc. (Panama)
+
+Anyone redistributing this software, in source or modified form, **must propagate the line above verbatim** along with a copy of `LICENSE` (or the URL https://polyformproject.org/licenses/noncommercial/1.0.0).
+
+### Third-party components
+
+The repository bundles several third-party libraries under their own permissive licenses (MIT, Apache-2.0, BSD-3-Clause). Those licenses are unchanged and continue to apply to the corresponding files. Full attribution is in [NOTICES.md](./NOTICES.md):
+
+| Component | Path | License |
+|---|---|---|
+| OpenZeppelin Contracts | `lib/openzeppelin-contracts/` | MIT |
+| OpenZeppelin Contracts Upgradeable | `lib/openzeppelin-contracts-upgradeable/` | MIT |
+| Solady | `lib/solady/` | MIT |
+| Forge Standard Library | `lib/forge-std/` | MIT OR Apache-2.0 |
+| Compound Timelock | `vendor/compound-timelock/` | BSD-3-Clause (with one MIT-derived file — see [`vendor/compound-timelock/LICENSE`](./vendor/compound-timelock/LICENSE)) |
+
+### Note on "open source"
+
+PolyForm Noncommercial 1.0.0 is a **source-available** license, not an OSI-approved open source license (OSI Open Source Definition §6 forbids restrictions on field of endeavor, including commercial use). Use of "open source" terminology to describe this project should be avoided in contexts where OSI compliance matters.
