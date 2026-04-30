@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+# Copyright 2025 Working Ants Inc. (Panama)
+#
 # Populate .env with addresses from a completed Deploy.s.sol broadcast.
 #
 # Usage:
