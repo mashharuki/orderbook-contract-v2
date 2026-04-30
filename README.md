@@ -132,25 +132,6 @@ Run all tests:
 forge test
 ```
 
-### Local Subgraph Testing (E2E)
-A fully automated local subgraph integration test suite is available in the `../sera-web3-layer-graph` repository. It spins up a local Graph Node, an Anvil chain, and automatically deploys these contracts to fully verify event indexing correctness.
-
-To run the local indexing test:
-```shell
-cd ../sera-web3-layer-graph
-make test
-```
-
-### Full Stack E2E (Relayer + Contracts + Subgraph)
-To test the full pipeline including the relayer submitting transactions, subgraph indexing events, and the relayer reading indexed data back:
-
-```shell
-cd ../web3-relayer
-make e2e
-```
-
-See [web3-relayer/README.md](../web3-relayer/README.md) for details.
-
 ### Coverage
 ```shell
 forge coverage
@@ -181,43 +162,53 @@ All documentation lives in the `readme/` folder. For architecture diagrams, secu
 
 ---
 
-## Recent Changes & Optimizations
+## Design Overview
 
 ### Architecture
 
-- **Solady Integration**: Uses Solady's gas-optimized `EIP712`. Signature validation uses OpenZeppelin's `SignatureChecker` for unified EOA + EIP-1271 smart contract wallet support
-- **Order Struct Refactor**: `Order` now uses packed `uint48` for `expiration` and `feeBps`, includes `initialDepositAmount` for signed SOR funding control, and `uuid` for replay protection (removed `salt`/`createdAt`/`routeHash`). `BPS_DENOMINATOR` expanded to `1e14` (from `10,000`) for sub-basis-point fee granularity while fitting within `uint48` storage.
-- **Slippage Sharing**: Replaced `slippageCaptureBps` with `SlippageShare` struct (`makerShareBps`, `takerShareBps`, `protocolShareBps`, `totalBps`) for configurable profit splits
-- **Withdrawal System**: Dual-path withdrawals with 7200-block delay (24h) + 14400-block expiration (48h) for emergency path, or instant dual-signature path
-- **SOR-Based Architecture**: The SOR uses a signed routing model — the taker signs an `IntentParams` (SOR parameters) struct `(taker, inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)` once, and the executor freely constructs optimal route legs at execution time. The `taker`, `recipient`, and `initialDepositAmount` are cryptographically committed to prevent identity spoofing, output hijacking, and unauthorized wallet pulls. The `taker` field enables EIP-1271 smart contract wallet support by binding the signer's address into the signed struct (replacing the old `ecrecover`-derived identity model). This fixes TOCTOU issues with the old `routeHash` route-binding model. Final-leg positive slippage follows the configured slippage split. Any leftover intermediate transient balances trigger a `TransientBalanceNotZero` revert, enforcing strict fund conservation.
+- **Library stack**: Solady's gas-optimized `EIP712` for typed-data hashing; OpenZeppelin's `SignatureChecker` for unified EOA + EIP-1271 smart-contract wallet validation.
+- **Order struct**: packed `uint48` for `expiration` and `feeBps`; includes `initialDepositAmount` for signed SOR funding control and `uuid` for replay protection. `BPS_DENOMINATOR = 1e14` provides sub-basis-point fee granularity (e.g. $0.01 fee on $1M orders) within `uint48` storage.
+- **Slippage sharing**: configurable profit splits via the `SlippageShare` struct (`makerShareBps`, `takerShareBps`, `protocolShareBps`, `totalBps`).
+- **Withdrawal system**: dual-path — a 7200-block delayed emergency path (~24h, with a 14400-block / ~48h expiration window) and an instant dual-signature path requiring user + executor EIP-712 signatures.
+- **SOR signed-routing model**: the taker signs an `IntentParams` struct `(taker, inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)` once; the executor constructs optimal route legs freely at execution time. The `taker`, `recipient`, and `initialDepositAmount` fields are cryptographically committed to prevent identity spoofing, output hijacking, and unauthorized wallet pulls. The `taker` field binds the signer's address into the signed struct, enabling EIP-1271 smart-contract wallet support. Final-leg positive slippage follows the configured `SlippageShare` split. Any leftover intermediate transient balance triggers a `TransientBalanceNotZero` revert, enforcing strict fund conservation.
 
 ### Security
 
-- **Permit Front-run Protection**: `depositFundWithPermit` checks existing allowance before calling permit to avoid DoS
-- **Ghost Liquidity Prevention**: Vault balance checked on every match via `_validateMakerOrder`
-- **SOR Replay Protection**: Per-user UUID nonce mapping (`isIntentUuidUsed[user][uuid]`) prevents SOR replay without global nonce contention
-- **SOR Envelope Guards**: On-chain `maxInputAmount` and `minOutputAmount` guards signed by the taker cap total spending and floor total output across all route legs
-- **Signed SOR Recipient (Diamond-Safe)**: `recipient` is signed inside the SOR parameters, and every terminal leg's `order0.recipient` is enforced to match. This prevents output hijacking in both linear and split/diamond topologies.
-- **Signed SOR Wallet Funding**: `initialDepositAmount` is signed inside the SOR parameters so executors cannot modify the wallet pull amount at execution time. The exact amount signed is the exact amount pulled.
-- **Price Bounds**: `InvalidCostAmount` and `TokenMismatch` assertions in `SeraLib._executionValues`
-- **`creditLedger` Zero-Address Guard**: Added `user != address(0)` sanity check in `Vault.creditLedger()` to prevent accidentally burning vault balance to the zero address
-- **EIP-712 Canonical Array Encoding**: Fixed `executeInstantWithdrawDualSig` to hash `address[]` tokens as 32-byte-padded words (per EIP-712 spec) instead of `abi.encodePacked` 20-byte packing, ensuring full compatibility with standard wallets and SDKs
+- **Permit front-run protection**: `depositFundWithPermit` checks existing allowance before calling permit, neutralizing griefing attempts that race the permit nonce.
+- **Ghost liquidity prevention**: vault balance is verified on every match via `_validateMakerOrder` before any state changes.
+- **SOR replay protection**: per-user UUID nonce mapping (`isIntentUuidUsed[user][uuid]`) prevents replay without global nonce contention.
+- **SOR envelope guards**: taker-signed `maxInputAmount` and `minOutputAmount` cap total spending and floor total output across all route legs.
+- **Signed SOR recipient (diamond-safe)**: `recipient` is signed inside the SOR parameters; every terminal leg's `order0.recipient` is enforced to match. Prevents output hijacking in both linear and split/diamond topologies.
+- **Signed SOR wallet funding**: `initialDepositAmount` is signed inside the SOR parameters, so executors cannot modify the wallet-pull amount at execution time. The exact amount signed is the exact amount pulled.
+- **Price bounds**: `InvalidCostAmount` and `TokenMismatch` assertions in `SeraLib._executionValues`.
+- **`creditLedger` zero-address guard**: `user != address(0)` sanity check in `Vault.creditLedger()` prevents accidentally burning vault balance to the zero address.
+- **EIP-712 canonical array encoding**: `executeInstantWithdrawDualSig` hashes `address[]` tokens as 32-byte-padded words (per EIP-712 spec), ensuring compatibility with standard wallets and SDKs.
+- **Transient reentrancy guard**: `ReentrancyGuardTransient` on all `Sera.sol` entry points; locks use transient storage (EIP-1153) and last only for the duration of cross-contract execution.
 
-### Gas Optimizations
+### Gas optimizations
 
-- **SOR Gas Efficiency**: `SeraSOR` now allocates transient memory efficiently through a `uniqueTokenCount` hint passed by the off-chain matching engine, drastically reducing MSTORE memory expansion penalties during multi-leg route execution
-- Cached `EXECUTOR_ROLE` as immutable in `SeraBase.sol` (~2100 gas/call)
-- Cached hot calldata fields in `_settleRoutedLegInternal`
-- `unchecked` loop increments system-wide
-- Fail-fast validation in `_validateOrderCommon`
-- Cached `trackedBalance` in `Vault.sol` to avoid double SLOADs
-- `creditLedger` now relies on a documented push-then-credit invariant, removing the old surplus check and avoiding future TOCTOU-style multi-trader races
+- **SOR transient-memory layout**: `SeraSOR` allocates transient memory using a `uniqueTokenCount` hint passed by the off-chain matching engine, reducing MSTORE memory-expansion penalties during multi-leg route execution.
+- `EXECUTOR_ROLE` cached as `immutable` in `SeraBase.sol` (~2100 gas/call).
+- Hot calldata fields cached in `_settleRoutedLegInternal`.
+- `unchecked` loop increments system-wide where overflow is provably impossible.
+- Fail-fast validation order in `_validateOrderCommon`.
+- `trackedBalance` cached in `Vault.sol` to avoid double SLOADs.
+- `creditLedger` relies on a documented push-then-credit invariant, sidestepping TOCTOU-style multi-trader races.
 
 ### Governance
 
-- **Compound Timelock Scaffold**: The repo ships an isolated sub-project under `vendor/compound-timelock/` that builds the original Compound/Uniswap `Timelock.sol` (Solidity 0.5.16) so the deployed bytecode matches the battle-tested governance timelock used by Uniswap and others. `Deploy.s.sol` reads `TIMELOCK_ADDRESS` from the environment and, if set, transfers `DEFAULT_ADMIN_ROLE` on both `Vault` and `Sera` to that address before renouncing the deployer's admin (with post-condition asserts so a half-transferred deploy cannot succeed).
-- **`SeraLens` and `SeraMulticall`**: Previously removed; not part of the current deployment.
-- **EIP-1271 / EIP-7702 Signers**: Maker, taker, and instant-withdraw signature paths all flow through OpenZeppelin's `SignatureChecker`, so smart-contract wallets (Safe, Argent, ERC-4337) and 7702-delegated EOAs are first-class signers.
+- **Compound Timelock**: the repo ships an isolated sub-project under [`vendor/compound-timelock/`](./vendor/compound-timelock/) that compiles the original Compound/Uniswap `Timelock.sol` (Solidity 0.5.16), so the deployed bytecode matches the battle-tested governance timelock used by Uniswap and others. `Deploy.s.sol` reads `TIMELOCK_ADDRESS` from the environment; if set, it transfers `DEFAULT_ADMIN_ROLE` on both `Vault` and `Sera` to that address before renouncing the deployer's admin, with post-condition asserts so a half-transferred deploy cannot succeed.
+- **EIP-1271 / EIP-7702 signers**: maker, taker, and instant-withdraw signature paths all flow through OpenZeppelin's `SignatureChecker`, so smart-contract wallets (Safe, Argent, ERC-4337) and EIP-7702-delegated EOAs are first-class signers.
+
+---
+
+## Security Audit (TLDR)
+
+- **Auditor:** CertiK
+- **Report:** [`audits/2026-04-30-certik-sera-final.pdf`](./audits/2026-04-30-certik-sera-final.pdf) — final, dated 2026-04-30
+- **Scope:** all first-party contracts under `src/` — `Sera`, `SeraSOR`, `SeraBatcher`, `SeraAdmin`, `SeraBase`, `SeraLib`, `Vault`, and `IVault`. Test fixtures, deploy scripts, mocks, and vendored / third-party libraries (`vendor/compound-timelock/`, `lib/openzeppelin-contracts/`, `lib/solady/`, `lib/forge-std/`) are out of scope.
+- **Status:** All in-scope findings have been addressed in the post-audit code. Proof-of-concept tests validating each finding live under [`test/SeraSOR_DeepAudit.t.sol`](./test/SeraSOR_DeepAudit.t.sol), with cross-references to the full test surface in [`test/summary.md`](./test/summary.md).
+- For severity breakdown, individual findings, and remediation discussion, **see the PDF**.
 
 ---
 
