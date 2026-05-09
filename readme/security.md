@@ -22,13 +22,13 @@ Compromised accounts (e.g., a hacked user wallet) can be frozen by the `DEFAULT_
 ## 4. Ghost Liquidity & The 24h Sync Window
 Because orders are signed off-chain via the SOR, the system must handle the case where a user signs an order and subsequently initiates an emergency withdrawal.
 
-- **The 24h Sync Window:** The `emergencyWithdraw` function imposes a 24-hour delay. This is a critical design feature that allows the executor to monitor the blockchain, detect a user's withdrawal request, and proactively cancel or block that user's off-chain orders before the funds are actually released.
+- **The 24h Sync Window:** The `emergencyWithdraw` function imposes a 24-hour delay. This is a critical design feature that allows the executor to monitor the blockchain, detect a user's withdrawal request, and proactively cancel or block that user's pending orders before the funds are actually released.
 - **On-Chain Failsafe:** As a final layer of defense (e.g., during executor downtime), the `Sera.sol` internal matching functions explicitly execute an invariant check: `vault.balanceOf(token, user) >= requiredMatchAmount`.
 - **Graceful Failure:** Invalidly backed orders (those without sufficient vault balance) immediately halt and fail to match. Relying wrappers (`SeraBatcher`) can gracefully continue parsing remaining orders without dropping the entire payload.
 
 ## 5. Match Execution Integrity Limits
 Because the executor determines the exact ratios crossed via limit inputs, the smart contract strictly enforces mathematical invariants to protect both users:
-- **Price Bounds Check (`InvalidCostAmount`):** The engine mathematically asserts that the Taker is paying *at least* what the Maker's required exchange rate dictates, preventing relayers from intentionally granting worse execution prices.
+- **Price Bounds Check (`InvalidCostAmount`):** The engine mathematically asserts that the Taker is paying *at least* what the Maker's required exchange rate dictates, preventing executors from intentionally granting worse execution prices.
 - **Strict Token Alignments (`TokenMismatch`):** The Engine verifies identically matching `fromToken` and `toToken` properties between Order 0 and Order 1.
 - **Implicit Rebate System:** When the two limits create a natural spread bonus, the engine partitions a configurable slippage share to the Protocol, the Maker, and the Taker. Critically, to protect physical vault solvency, the Protocol never *pushes* a bonus to a receiver. Instead, whoever *sent* the surplus token explicitly receives a discount applied seamlessly beneath their maximum spending limit.
 - **Pull-Only Settlement (SOR):** For routed legs, `_settleRoutedLegInternal` computes `neededFromTaker = makerReceives + protocolTake0` *before* vault interaction and only withdraws that net amount. The taker's spread share (`spreadToTaker0`) implicitly stays in the vault, eliminating redundant `safeTransfer` + `creditLedger` round-trips (~7k gas saved per vault-pulled leg).

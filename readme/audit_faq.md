@@ -172,7 +172,7 @@ The whitelist check in `_validateOrderCommon` only validates `order.fromToken`. 
 
 ### Deliberate Design
 
-This is a phased deprecation strategy. If a token needs to be removed from the ecosystem, it is first hidden on the frontend interface. The executor will then cease to route orders involving this token. Once the off-chain layer has fully drained or expired relevant routes, the token is eventually removed from the on-chain whitelist.
+This is a phased deprecation strategy. If a token needs to be removed from the ecosystem, it is first hidden on the user interface. The executor will then cease to route orders involving this token. Once the executor has fully drained or expired relevant routes, the token is eventually removed from the on-chain whitelist.
 
 During the wind-down window, the lack of a `toToken` check allows the executor to cleanly resolve existing taker orders that expected the deprecated token as output, without hard-reverting the matches. Since only permissioned executors can submit matches, there is no risk of arbitrary exploitation.
 
@@ -246,7 +246,7 @@ In a system operated by a centralized, permissioned executor (`EXECUTOR_ROLE`), 
 **Location:** `Sera.sol` - `depositFundWithPermit()`
 
 ### Observed Pattern
-To safely allow gas to be sponsored or paid by a executor, `depositFundWithPermit()` intentionally omits a `msg.sender == _owner` check.
+To safely allow gas to be sponsored or paid by an executor, `depositFundWithPermit()` intentionally omits a `msg.sender == _owner` check.
 
 ### Why this is Secure
 The EIP-2612 `permit` signature itself cryptographically anchors the `_owner` address. Funds can **only** move from the signer's wallet directly into the vault balance associated with that same signer. There is no way for a third party to redirect the funds to themselves.
@@ -261,7 +261,7 @@ This is standard ERC20 approval semantics, not an authorization bypass.
 ### The Front-Running Vector (Gas Griefing)
 The primary "risk" is that a front-running bot can observe the permit signature in the mempool and execute the transaction first. 
 - **Impact on User:** Zero. Their funds end up in their vault balance exactly as intended.
-- **Impact on Relayer/Sponsor:** The sponsor's transaction will revert (since the permit nonce is already consumed by the bot), causing the sponsor to waste gas on a failed execution.
+- **Impact on Sponsor:** The sponsor's transaction will revert (since the permit nonce is already consumed by the bot), causing the sponsor to waste gas on a failed execution.
 
 ### Design Enforcement
 This is a **deliberate design choice** to enable gasless user deposits (sponsored by the protocol). The cost of rare gas griefing against the platform is accepted as a tradeoff for the improved user onboarding experience. Executors can mitigate this by checking if the permit nonce is already used before submitting their own transaction.

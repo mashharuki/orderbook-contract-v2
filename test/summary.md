@@ -249,15 +249,15 @@ Tests targeting the vault pull optimization and sentinel surplus safety net.
 | 2 | `test_VaultPull_ZeroSpread_FullDebit` | Vault Pull | 1:1 pricing. 100A→100B. | `vault.A(taker) = 0` (full consumption). `B.bal(taker) = 100`. |
 | 3 | `test_VaultPull_FirstLeg_WithFees` | Vault Pull | Taker 3% fee, Maker 1% fee. spread 200. | `protocolFee0 = mulDiv(800, 100, 10000)`. Exact assertions on maker, taker, treasury. |
 | 4 | `test_Sentinel_IntermediateSpread_SurplusToVault` | Sentinel | 2-leg. Leg 1 exact, Leg 2 spread 30B. | `vault.B(taker) > 0` (surplus returned). No dust. |
-| 5 | `test_Sentinel_MECalibrated_ZeroSurplus` | Sentinel | 2-leg. executor-calibrated: zero spread on both legs. | `vault.B(taker) = 0`. `vault.A(taker) = 0`. Taker received C. |
-| 6 | `test_PerLegFees_DifferentFeesPerLeg` | Per-leg Fees | 2-leg. Leg 1: 5% taker. Leg 2: 10% maker. executor-calibrated. | Taker A consumed. Maker1 vault A = 1000. No dust. Solvency. |
+| 5 | `test_Sentinel_MECalibrated_ZeroSurplus` | Sentinel | 2-leg. Executor-calibrated: zero spread on both legs. | `vault.B(taker) = 0`. `vault.A(taker) = 0`. Taker received C. |
+| 6 | `test_PerLegFees_DifferentFeesPerLeg` | Per-leg Fees | 2-leg. Leg 1: 5% taker. Leg 2: 10% maker. Executor-calibrated. | Taker A consumed. Maker1 vault A = 1000. No dust. Solvency. |
 | 7 | `test_PerLegFees_EscalatingTakerFees` | Per-leg Fees | 3-leg. Leg 1: 0%. Leg 2: 0%. Leg 3: 5% taker. | `D.bal(taker) = 125e18 - 5%`. Exact fee computed via `mulDiv`. |
 | 8 | `test_PerLegFees_HighMakerFee_SecondLeg` | Per-leg Fees | 2-leg. Leg 2: 10% maker fee. | `vault.B(m2) = 45`. `vault.B(treasury) = 5`. |
 | 9 | `test_DynamicShares_ChangeBetweenRoutes` | Shares | Route 1: 25/25/50. Route 2: 0/0/100. Same maker pricing. | After R1: 1050A. After R2: 50A (no spread retained). |
 | 10 | `test_Shares_AllMaker` | Shares | 100/0/0 shares. Spread 200. | `vault.A(taker) = 200` (maker implicit bonus stays). |
 | 11 | `test_Shares_AllTaker` | Shares | 0/100/0 shares. Spread 200. | `vault.A(taker) = 0`. `A.bal(m1) = 1000` (spreadToTaker0 inflates executionValue1). |
 | 12 | `test_Combined_VaultPullAndSentinelSurplus` | Combined | 2-leg. Leg 1: vault pull with spread. Leg 2: sentinel with spread. | Taker A retained > 0. Taker B surplus > 0 (safety net). Taker received C. |
-| 13 | `test_Combined_ThreeLeg_MECalibrated_PerLegFees` | Combined | 3-leg. 2% taker L1, 0% L2, 5% taker L3. executor-calibrated zero spread. | `D.bal(taker) = 245e18 - 5%` exactly. No B/C surplus. A fully consumed. |
+| 13 | `test_Combined_ThreeLeg_MECalibrated_PerLegFees` | Combined | 3-leg. 2% taker L1, 0% L2, 5% taker L3. Executor-calibrated zero spread. | `D.bal(taker) = 245e18 - 5%` exactly. No B/C surplus. A fully consumed. |
 | 14 | `test_Audit_Fixed_MixedSettlementRefundsPhysicalSurplus` | Audit Fix | Mixed transient (40 wallet) + vault (60). Maker needs 80. Spread 20A. Shares 25/25/50. | `vault.A(taker) = 5` (exact taker spread). `A.bal(m1) = 85` (maker + bonus). `vault.A(treasury) = 10`. No dust. Solvent. |
 
 ---
@@ -269,7 +269,7 @@ Stress tests for settlement math under extreme conditions.
 | # | Test | Category | Key Feature |
 |---|------|----------|-------------|
 | 1 | `testFuzz_SingleLeg_RandomPricing` | Fuzz | Random pricing with solvency invariant. |
-| 2 | `testFuzz_TwoLeg_MECalibrated_PerLegFees` | Fuzz | executor-calibrated 2-leg with random per-leg fees. |
+| 2 | `testFuzz_TwoLeg_MECalibrated_PerLegFees` | Fuzz | Executor-calibrated 2-leg with random per-leg fees. |
 | 3 | `testFuzz_VaultPull_RandomSharesAndFees` | Fuzz | Random slippage shares and fees with vault pull. |
 | 4 | `test_AsymmetricPricing_HighRatio` | Deterministic | High price ratio settlement. |
 | 5 | `test_AsymmetricPricing_LowRatio` | Deterministic | Low price ratio settlement. |

@@ -39,7 +39,7 @@ This repository contains **Solidity + Foundry** based order book matching contra
 ## Modular Documentation Index
 For detailed documentation on integrations, architecture, and security, see the guides in the `readme/` folder:
 
-1. **[Architecture Overview](readme/architecture.md)** — High-level integration diagrams for integration pairings, wrapper routing, and structural execution.
+1. **[Architecture Overview](readme/architecture.md)** — Wrapper routing, settlement flow, and structural execution.
 2. **[Security Overview](readme/security.md)** — Documentation covering non-custodial extraction boundaries, blacklisting limitations, Reentrancy handling, and ghost liquidity.
 3. **[Audit FAQ](readme/audit_faq.md)** — Deliberate design choices and "gas-over-verify" patterns explained for security auditors.
 4. **[Test Suite Summary](test/summary.md)** — Detailed audit summary of every test suite, counts, and assertions.
@@ -187,7 +187,7 @@ All documentation lives in the `readme/` folder. For architecture diagrams, secu
 
 ### Gas optimizations
 
-- **SOR transient-memory layout**: `SeraSOR` allocates transient memory using a `uniqueTokenCount` hint passed by the executor, reducing MSTORE memory-expansion penalties during multi-leg route execution.
+- **SOR transient-memory layout**: `SeraSOR` allocates transient memory using a `uniqueTokenCount` hint passed by the caller, reducing MSTORE memory-expansion penalties during multi-leg route execution.
 - `EXECUTOR_ROLE` cached as `immutable` in `SeraBase.sol` (~2100 gas/call).
 - Hot calldata fields cached in `_settleRoutedLegInternal`.
 - `unchecked` loop increments system-wide where overflow is provably impossible.
