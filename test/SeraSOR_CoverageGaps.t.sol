@@ -247,17 +247,11 @@ contract SeraSOR_CoverageGaps is TestHelper {
         // Diamond: Leg0: 2000 A -> B (hold), Leg1: 500 B -> C (hold), Leg2: 500 B -> D (terminal)
         // But that's not a diamond anymore.
         //
-        // True diamond with wallet funding: taker deposits 2000 A on leg0.
-        // Leg0: 1000 A -> B (hold). Leg1: 1000 A -> C (hold).
-        // Both legs have fromToken = A = inputToken, so vault pull is allowed.
-        // Wallet covers 2000 A on leg0 via initialDepositAmount = 2000.
-        // Leg0 matchAmount0 = 1000, but initialDepositAmount = 2000 covers both legs.
-        // Wait - initialDepositAmount can't exceed matchAmount0 (line 111).
-        //
-        // OK, correct approach: initialDepositAmount = 1000 on leg0.
-        // Leg0 consumes 1000 from wallet. Leg1 has fromToken = A = inputToken,
-        // so takerVaultPull > 0 is allowed. But taker has no vault A.
-        // So we need to deposit the other 1000 in vault.
+        // True diamond with wallet funding can over-pull into transient on leg0,
+        // then spend the residual across later input-token legs. This coverage
+        // file keeps the older mixed wallet+vault shape below because it also
+        // exercises the vault top-up path; the pure over-pull case is pinned in
+        // SeraSOR_OptionB's shared-order shared-order regression.
 
         // Let's switch to the clean approach: wallet funds 1000, vault funds 1000.
         // This actually tests mixed funding which is even better.

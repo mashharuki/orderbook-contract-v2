@@ -20,6 +20,7 @@ import "./TestHelper.sol";
  *        - Sentinel + non-zero initialDepositAmount on first leg.
  *        - Boundary: initialDepositAmount == matchAmount0.
  *        - Vault top-up: initialDepositAmount < matchAmount0 with vault contribution.
+ *        - shared-order multi-fill: one taker order filled by multiple makers.
  *        - Gas overhead bound for single-leg.
  */
 contract SeraSOR_OptionB_Test is TestHelper {
@@ -379,6 +380,61 @@ contract SeraSOR_OptionB_Test is TestHelper {
         assertEq(eth.balanceOf(taker), 10 ether, "taker should receive 10 ETH");
         assertEq(v.balanceOf(address(usdc), taker), 0, "taker's vault USDC fully consumed");
         assertEq(usdc.balanceOf(address(sera)), 0, "no USDC dust in Sera");
+    }
+
+    // ============ TEST #10: SHARED-ORDER MULTI-FILL ============
+
+    /// @notice OA emits one shared taker order for same-pair multi-fill swaps.
+    ///         The wallet pull is larger than the first leg, and the residual
+    ///         input-token transient feeds the second maker fill.
+    function test_OptionB_SharedOrderMultiFillSamePair_HappyPath() public {
+        _mintAndDeposit(maker1, address(eth), 6 ether, sera);
+        _mintAndDeposit(maker2, address(eth), 4 ether, sera);
+        usdc.mint(taker, 100 ether);
+        vm.prank(taker);
+        usdc.approve(address(sor), 100 ether);
+
+        Order memory sharedTakerOrder = _makeOrder(taker, address(usdc), address(eth), 100 ether, 10 ether, 132);
+        sharedTakerOrder.initialDepositAmount = 100 ether;
+        sharedTakerOrder.recipient = address(0);
+        bytes32 takerHash = _getOrderHashMemory(sharedTakerOrder);
+
+        Order memory makerLeg0 = _makeOrder(maker1, address(eth), address(usdc), 6 ether, 60 ether, 133);
+        Order memory makerLeg1 = _makeOrder(maker2, address(eth), address(usdc), 4 ether, 40 ether, 134);
+        makerLeg0.recipient = address(0);
+        makerLeg1.recipient = address(0);
+
+        MatchData[] memory matches = new MatchData[](2);
+        matches[0] = MatchData(
+            sharedTakerOrder, bytes(""), 60 ether,
+            makerLeg0, _signOrder(maker1PK, makerLeg0, sera), 6 ether
+        );
+        matches[1] = MatchData(
+            sharedTakerOrder, bytes(""), 40 ether,
+            makerLeg1, _signOrder(maker2PK, makerLeg1, sera), 4 ether
+        );
+
+        assertGt(sharedTakerOrder.initialDepositAmount, matches[0].matchAmount0, "shared-order discriminator drifted");
+
+        bytes memory sorSig = _signIntent(
+            takerPK, taker, address(usdc), address(eth),
+            100 ether, 10 ether, address(0), 100 ether, 1320,
+            uint48(block.timestamp + 1 days), sera
+        );
+
+        vm.prank(executor);
+        sor.executeIntent(
+            matches, sorSig,
+            IntentParams(taker, address(usdc), address(eth), 100 ether, 10 ether, address(0), 100 ether, 1320, uint48(block.timestamp + 1 days)),
+            5, 0, bytes("")
+        );
+
+        assertEq(v.balanceOf(address(eth), taker), 10 ether, "taker should receive aggregate ETH from both makers");
+        assertEq(v.balanceOf(address(usdc), maker1), 60 ether, "maker1 should receive USDC internally");
+        assertEq(v.balanceOf(address(usdc), maker2), 40 ether, "maker2 should receive USDC internally");
+        assertEq(sera.filledAmount(takerHash), 100 ether, "shared taker order should be fully filled");
+        assertEq(usdc.balanceOf(address(sera)), 0, "no USDC dust in Sera");
+        assertEq(eth.balanceOf(address(sera)), 0, "no ETH dust in Sera");
     }
 
     // ============ TEST #11: GAS OVERHEAD BOUND ============

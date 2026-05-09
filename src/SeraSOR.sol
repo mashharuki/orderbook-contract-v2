@@ -85,7 +85,11 @@ contract SeraSOR is SeraBase {
         // Exact wallet pull amount is committed in the intent signature — executor cannot modify
         uint256 takerInputCost = intent.initialDepositAmount;
 
-		// Verify the executor-supplied order matches the signed deposit amount
+		// Sanity-pin: matches[0].order0 must echo the signed deposit so the on-chain
+		// OrderMatched event hash stays consistent with what off-chain consumers expect.
+		// NOT a security gate — the wallet pull below is hardcoded to
+		// intent.initialDepositAmount; this per-leg field has no settlement effect
+		// (only flows into getOrderHashCalldata for the takerHash event metadata).
 		if (matches[0].order0.initialDepositAmount != intent.initialDepositAmount) revert InvalidRoute();
 
         if (takerInputCost > 0) {

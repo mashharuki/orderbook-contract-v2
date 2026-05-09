@@ -7,14 +7,29 @@ import "../src/Sera.sol";
 import "../src/SeraBatcher.sol";
 import "../src/SeraSOR.sol";
 import "../src/mock/MockStableCoin.sol";
+import "../src/mock/MockStableCoinDecimals.sol";
 
 /**
  * @title DeployLocal
  * @notice Deploy the full Sera stack to a local Anvil chain for E2E testing.
  *
- * Deploys: Vault, Sera, SeraBatcher, SeraSOR, 2 mock ERC-20 tokens.
- * Configures: whitelist, EXECUTOR_ROLE, TRADER_ROLE, trusted router.
- * Mints: 1M of each token to deployer + up to 2 extra test wallets.
+ * Deploys: Vault, Sera, SeraBatcher, SeraSOR, 5 mock ERC-20 tokens.
+ *   - TOKEN_A: USDT (18-decimal MockStableCoin)
+ *   - TOKEN_B: SGD  (18-decimal MockStableCoin)
+ *   - TOKEN_C: USDC (6-decimal MockStableCoinDecimals)
+ *   - TOKEN_D: WBTC (8-decimal MockStableCoinDecimals)
+ *   - TOKEN_E: WETH (18-decimal MockStableCoinDecimals)
+ *
+ * The 5-token fixture is required for multi-leg SOR tests (Group K
+ * SOR coverage, SOR coverage, SOR coverage, SOR coverage, plus
+ * decimal/pair-shape matrix decimal/pair-shape matrix). Pair registration is
+ * handled by the external setup (NOT this script) so deploy
+ * stays minimal and admin-token-driven.
+ *
+ * Configures: whitelist all 5 tokens, EXECUTOR_ROLE, TRADER_ROLE,
+ * trusted router.
+ * Mints: 1M units of each token (raw scaled by per-token decimals)
+ * to deployer + up to 2 extra test wallets.
  *
  * Usage:
  *   # Start Anvil in a separate terminal:
@@ -50,10 +65,27 @@ contract DeployLocalScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Deploy Mock Tokens
+        // CRITICAL: keep TOKEN_A and TOKEN_B as the FIRST and SECOND
+        // contracts deployed. downstream tooling hardcodes their
+        // Anvil-deterministic addresses (0x5fbdb...aa3 and 0xe7f17...512)
+        // as fallback defaults, which only resolve correctly when these
+        // are nonces 0 and 1 of the deployer.
         MockStableCoin tokenA = new MockStableCoin("USDT");
         MockStableCoin tokenB = new MockStableCoin("SGD");
-        console.log("Token A (USDT):", address(tokenA));
-        console.log("Token B (SGD): ", address(tokenB));
+        console.log("Token A (USDT, 18d):", address(tokenA));
+        console.log("Token B (SGD, 18d): ", address(tokenB));
+
+        // 1b. Deploy non-18-decimal tokens. TOKEN_C/D/E unlock the
+        // multi-leg SOR test multi-leg SOR coverage and
+        // the decimal/pair-shape matrix (decimal/pair-shape matrix). The order
+        // is deterministic; broadcast tooling extracts these as
+        // TOKEN_C/D/E in deploy order from the broadcast file.
+        MockStableCoinDecimals tokenC = new MockStableCoinDecimals("USDC", 6);
+        MockStableCoinDecimals tokenD = new MockStableCoinDecimals("WBTC", 8);
+        MockStableCoinDecimals tokenE = new MockStableCoinDecimals("WETH", 18);
+        console.log("Token C (USDC, 6d): ", address(tokenC));
+        console.log("Token D (WBTC, 8d): ", address(tokenD));
+        console.log("Token E (WETH, 18d):", address(tokenE));
 
         // 2. Deploy Vault
         Vault vault = new Vault(deployer);
@@ -75,36 +107,59 @@ contract DeployLocalScript is Script {
         sera.grantRole(sera.EXECUTOR_ROLE(), address(batcher));
         console.log("SeraBatcher:   ", address(batcher));
 
-        // 6. Whitelist tokens
-        address[] memory wlTokens = new address[](2);
+        // 6. Whitelist all 5 tokens. Per-token min_amount stays at 1
+        // (smallest possible) so test code can drive both tiny-fill
+        // and dust-threshold scenarios. Production runbook overrides
+        // these via batchModifyWhitelistedTokens at deploy time.
+        address[] memory wlTokens = new address[](5);
         wlTokens[0] = address(tokenA);
         wlTokens[1] = address(tokenB);
-        uint256[] memory wlAmounts = new uint256[](2);
+        wlTokens[2] = address(tokenC);
+        wlTokens[3] = address(tokenD);
+        wlTokens[4] = address(tokenE);
+        uint256[] memory wlAmounts = new uint256[](5);
         wlAmounts[0] = 1;
         wlAmounts[1] = 1;
+        wlAmounts[2] = 1;
+        wlAmounts[3] = 1;
+        wlAmounts[4] = 1;
         sera.batchModifyWhitelistedTokens(wlTokens, true, wlAmounts);
-        console.log("Whitelisted both tokens");
+        console.log("Whitelisted all 5 tokens");
 
         // 7. Grant EXECUTOR_ROLE to deployer (so local-script convenience)
         // Deployer is already DEFAULT_ADMIN, but EXECUTOR_ROLE is separate
         sera.grantRole(sera.EXECUTOR_ROLE(), deployer);
         console.log("Granted EXECUTOR_ROLE to deployer");
 
-        // 8. Mint tokens to deployer
-        uint256 mintAmount = 1_000_000 ether;
-        tokenA.mint(deployer, mintAmount);
-        tokenB.mint(deployer, mintAmount);
-        console.log("Minted 1M each to deployer");
+        // 8. Mint tokens to deployer. Each mint amount is scaled by
+        // the token's decimals (1M whole units regardless of decimal
+        // representation). 18-decimal tokens use `ether` (=1e18); 6
+        // and 8-decimal tokens use the explicit denominator.
+        uint256 mintAmount18 = 1_000_000 ether;          // 1M with 18 decimals
+        uint256 mintAmount6 = 1_000_000 * 10**6;         // 1M with 6 decimals
+        uint256 mintAmount8 = 1_000_000 * 10**8;         // 1M with 8 decimals
+        tokenA.mint(deployer, mintAmount18);
+        tokenB.mint(deployer, mintAmount18);
+        tokenC.mint(deployer, mintAmount6);
+        tokenD.mint(deployer, mintAmount8);
+        tokenE.mint(deployer, mintAmount18);
+        console.log("Minted 1M each (decimal-scaled) to deployer");
 
         // 9. Mint tokens to extra test wallets (if provided)
         if (wallet1 != address(0)) {
-            tokenA.mint(wallet1, mintAmount);
-            tokenB.mint(wallet1, mintAmount);
+            tokenA.mint(wallet1, mintAmount18);
+            tokenB.mint(wallet1, mintAmount18);
+            tokenC.mint(wallet1, mintAmount6);
+            tokenD.mint(wallet1, mintAmount8);
+            tokenE.mint(wallet1, mintAmount18);
             console.log("Minted 1M each to wallet1:", wallet1);
         }
         if (wallet2 != address(0)) {
-            tokenA.mint(wallet2, mintAmount);
-            tokenB.mint(wallet2, mintAmount);
+            tokenA.mint(wallet2, mintAmount18);
+            tokenB.mint(wallet2, mintAmount18);
+            tokenC.mint(wallet2, mintAmount6);
+            tokenD.mint(wallet2, mintAmount8);
+            tokenE.mint(wallet2, mintAmount18);
             console.log("Minted 1M each to wallet2:", wallet2);
         }
 
@@ -122,6 +177,9 @@ contract DeployLocalScript is Script {
         console.log("E2E_SERA_ADDRESS=", address(sera));
         console.log("E2E_TOKEN0_ADDRESS=", address(tokenA));
         console.log("E2E_TOKEN1_ADDRESS=", address(tokenB));
+        console.log("E2E_TOKEN2_ADDRESS=", address(tokenC));
+        console.log("E2E_TOKEN3_ADDRESS=", address(tokenD));
+        console.log("E2E_TOKEN4_ADDRESS=", address(tokenE));
         console.log("E2E_RPC_URL=http://127.0.0.1:8545");
     }
 }

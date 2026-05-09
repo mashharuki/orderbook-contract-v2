@@ -402,6 +402,52 @@ contract SeraSOR_PermitTests is TestHelper {
         assertEq(v.balanceOf(address(usdc), taker), 0, "All vault USDC spent");
     }
 
+    function test_permitSwap_PartialWalletDeposit_MaxInputPermitReverts() public {
+        // Taker has 500 USDC in wallet + 500 in vault, but no SOR allowance.
+        usdc.mint(taker, 500 ether);
+        _mintAndDeposit(taker, address(usdc), 500 ether, _sera());
+
+        Order memory takerOrder = Order({
+            user: taker,
+            expiration: uint48(block.timestamp + 1 days),
+            feeBps: 0,
+            recipient: taker,
+            fromToken: address(usdc),
+            toToken: address(eth),
+            fromAmount: 1000 ether,
+            toAmount: 10 ether,
+            initialDepositAmount: 500 ether,
+            uuid: 1
+        });
+        Order memory makerOrder = Order({
+            user: maker,
+            expiration: uint48(block.timestamp + 1 days),
+            feeBps: 0,
+            recipient: address(0),
+            fromToken: address(eth),
+            toToken: address(usdc),
+            fromAmount: 10 ether,
+            toAmount: 1000 ether,
+            initialDepositAmount: 0,
+            uuid: 2
+        });
+
+        bytes memory makerSig = _signOrder(makerPK, makerOrder, _sera());
+        MatchData[] memory matches = new MatchData[](1);
+        matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
+
+        bytes memory sorSig = _signIntent(
+            takerPK, taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 500 ether, 901, uint48(block.timestamp + 1 days), _sera()
+        );
+        // Wrong value: SOR will call permit(..., amount=500 ether), so a
+        // signature over maxInputAmount=1000 ether is invalid and is swallowed.
+        bytes memory maxInputPermitSig = _signPermit(takerPK, address(usdc), address(sor), 1000 ether, block.timestamp + 1 days);
+
+        vm.prank(executor);
+        vm.expectRevert(); // ERC20InsufficientAllowance from fallback safeTransferFrom
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 1000 ether, 10 ether, taker, 500 ether, 901, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, maxInputPermitSig);
+    }
+
     // =========================================================================
     // Expired permit but sufficient allowance (graceful fallback)
     // =========================================================================
