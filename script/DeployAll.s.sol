@@ -7,18 +7,11 @@ import "../src/Sera.sol";
 
 /**
  * @title DeployAll
- * @notice 
- * 
- * 1. 
  *
- * 
  * forge script script/DeployAll.s.sol:DeployAllScript \
  *   --rpc-url $RPC_URL \
  *   --broadcast \
  *   --verify
- *
- * 
- * - PRIVATE_KEY
  */
 contract DeployAllScript is Script {
     function run() external {
@@ -33,14 +26,11 @@ contract DeployAllScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // 
         Vault vault = new Vault(owner);
         console.log("Vault deployed at:", address(vault));
 
-        // 
         Sera sera = new Sera(owner, vault);
 
-        // 
         vault.grantRole(vault.TRADER_ROLE(), address(sera));
 
         vm.stopBroadcast();

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-// EN: MockStableCoin is a simple ERC20 + Permit token for testing flows.
-// 
+// MockStableCoin is a simple ERC20 + Permit token for testing flows.
 pragma solidity 0.8.24;
 
 import "solady/src/tokens/ERC20.sol";

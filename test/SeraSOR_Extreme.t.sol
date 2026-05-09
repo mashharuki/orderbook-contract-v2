@@ -11,7 +11,7 @@ import "./TestHelper.sol";
 /**
  * @title SeraSOR_Extreme_Test
  * @dev Exhaustive extreme scenario tests for financial correctness:
- *      - dust-fix verification (single-leg, multi-leg, all slippage configs)
+ *      - Dust-fix verification (single-leg, multi-leg, all slippage configs)
  *      - Token conservation invariants under all spread/fee combos
  *      - Rounding edge cases at wei level across multi-leg routes
  *      - Asymmetric spreads, maximum fees, and partial fill interactions

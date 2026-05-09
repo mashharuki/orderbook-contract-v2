@@ -60,7 +60,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Signature skip on partially-filled orders allows any
+    // Signature skip on partially-filled orders allows any
     //          executor to fill remaining amount without original signer.
     //
     // Root cause: Sera._validateMakerOrder skips signature verification
@@ -125,7 +125,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Emergency withdraw allows amount LESS than requested.
+    // Emergency withdraw allows amount LESS than requested.
     //
     // Root cause: Sera.emergencyWithdraw line 221 checks `amount > request.amount`
     //             not `amount != request.amount`. This means you can request
@@ -161,7 +161,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Vault.creditLedger does NOT verify actual token receipt.
+    // Vault.creditLedger does NOT verify actual token receipt.
     //
     // Root cause: creditLedger increments balances[token][user] by
     //             expectedAmount without checking actual ERC20 balance of
@@ -189,7 +189,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Replay between two Sera deployments on the same chain.
+    // Replay between two Sera deployments on the same chain.
     //
     // Root cause: EIP-712 domain uses (name, version, chainId, verifyingContract).
     //             Different Sera deployments have different verifyingContract,
@@ -249,7 +249,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Order reuse after full fill attempt via filledAmount.
+    // Order reuse after full fill attempt via filledAmount.
     //
     // Root cause: filledAmount[orderHash] tracks cumulative fills.
     //             Once filledAmount >= order.fromAmount, any further match
@@ -315,7 +315,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  SOR uuid replay protection works per-user.
+    // SOR uuid replay protection works per-user.
     //
     // Verify: Same uuid can be used by different users (no global collision).
     //         Same uuid by same user reverts on second use.
@@ -376,7 +376,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  maxInputAmount = 0 means "no cap" — unbounded spending.
+    // maxInputAmount = 0 means "no cap" — unbounded spending.
     //
     // Verify: When maxInputAmount is 0, the envelope guard is skipped.
     //         The taker's only protection is individual order limits.
@@ -430,7 +430,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Emergency withdraw expiration check.
+    // Emergency withdraw expiration check.
     //
     // Root cause: Line 212 resets request if block.number > requestBlock + 14400.
     //             After expiration, the user must start a new request.
@@ -456,7 +456,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Vault.rescueToken only allows rescuing surplus.
+    // Vault.rescueToken only allows rescuing surplus.
     //
     // Root cause: rescueToken checks vaultBalance - trackedBalance for surplus.
     //             Only surplus (untracked tokens) can be rescued.
@@ -472,7 +472,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Slippage shares overflow check.
+    // Slippage shares overflow check.
     //
     // SeraAdmin.setSlippageShares requires makerShare + takerShare + protocolShare == totalBps.
     // But the calculation in _calculateSettlement does:
@@ -492,7 +492,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  SOR with single leg passes the universal transient zero-balance check.
+    // SOR with single leg passes the universal transient zero-balance check.
     //
     // The TransientBalanceNotZero check runs for all routes, including
     // single-leg. Single-leg routes never accumulate transient balance
@@ -547,7 +547,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  executionValue rounding (Ceil) and spread underflow.
+    // executionValue rounding (Ceil) and spread underflow.
     //
     // Root cause: SeraLib._executionValues uses Math.Rounding.Ceil.
     //             This means executionValue0 could equal effectiveAmount1
@@ -601,7 +601,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Vault withdraw InsufficientBalance edge case.
+    // Vault withdraw InsufficientBalance edge case.
     //
     // If a maker signs an order for 1000 USDC and partially deposits 500,
     // the ghost liquidity check in _validateMakerOrder catches it.
@@ -649,7 +649,7 @@ contract SeraSOR_DeepAudit is TestHelper {
     }
 
     // ===================================================================
-    //  Withdraw intent UUID collision across mechanisms.
+    // Withdraw intent UUID collision across mechanisms.
     //
     // Root cause: Sera uses `isUuidExecuted[user][uuid]` for instant withdrawals.
     //             SeraSOR uses `isIntentUuidUsed[user][uuid]` for SOR intents.

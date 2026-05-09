@@ -118,7 +118,7 @@ contract DeployLocalScript is Script {
         sera.batchModifyWhitelistedTokens(wlTokens, true, wlAmounts);
         console.log("Whitelisted all 5 tokens");
 
-        // 7. Grant EXECUTOR_ROLE to deployer (so local-script convenience)
+        // 7. Grant EXECUTOR_ROLE to deployer for local-script convenience
         // Deployer is already DEFAULT_ADMIN, but EXECUTOR_ROLE is separate
         sera.grantRole(sera.EXECUTOR_ROLE(), deployer);
         console.log("Granted EXECUTOR_ROLE to deployer");

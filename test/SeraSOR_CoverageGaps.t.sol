@@ -11,9 +11,9 @@ import "./TestHelper.sol";
 /**
  * @title SeraSOR_CoverageGaps
  * @notice Tests covering 3 identified gaps in SOR coverage:
- *   Diamond with positive slippage on intermediate legs (exact amounts verified)
- *   Diamond with wallet funding (initialDepositAmount > 0)
- *   Diamond where both terminal legs deliver output token to taker (convergent diamond)
+ *  Diamond with positive slippage on intermediate legs (exact amounts verified)
+ *  Diamond with wallet funding (initialDepositAmount > 0)
+ *  Diamond where both terminal legs deliver output token to taker (convergent diamond)
  */
 contract SeraSOR_CoverageGaps is TestHelper {
     Sera public sera;
@@ -106,7 +106,7 @@ contract SeraSOR_CoverageGaps is TestHelper {
     }
 
     // ====================================================================
-    //   Diamond with positive slippage on INTERMEDIATE legs.
+    //  Diamond with positive slippage on INTERMEDIATE legs.
     //
     //  Topology: A ---> B ---> D  (branch 1)
     //            A ---> C ---> D  (branch 2)
@@ -196,7 +196,7 @@ contract SeraSOR_CoverageGaps is TestHelper {
     }
 
     // ====================================================================
-    //   Diamond with wallet funding (initialDepositAmount > 0).
+    //  Diamond with wallet funding (initialDepositAmount > 0).
     //
     //  Same diamond topology but taker pays from wallet, not vault.
     //  Leg 1 uses initialDepositAmount to pull A from taker's wallet.
@@ -306,7 +306,7 @@ contract SeraSOR_CoverageGaps is TestHelper {
     }
 
     // ====================================================================
-    //   Convergent diamond - both terminal legs deliver same output
+    //  Convergent diamond - both terminal legs deliver same output
     //         token to taker (recipient = taker on BOTH final legs).
     //
     //  Topology: A ---> B ---> D   (branch 1, terminal, recipient=taker)
@@ -374,7 +374,7 @@ contract SeraSOR_CoverageGaps is TestHelper {
     }
 
     // ====================================================================
-    //   Convergent diamond with fees + positive slippage on
+    //  Convergent diamond with fees + positive slippage on
     //          terminal legs, verifying totalTakerOutput aggregation
     //          against minOutputAmount envelope guard.
     // ====================================================================
@@ -439,7 +439,7 @@ contract SeraSOR_CoverageGaps is TestHelper {
     }
 
     // ====================================================================
-    //   Convergent diamond where minOutput guard REJECTS.
+    //  Convergent diamond where minOutput guard REJECTS.
     //          Taker demands 999 D minimum but diamond only delivers ~360.
     // ====================================================================
     function test_Gap3c_ConvergentDiamond_MinOutputReverts() public {
@@ -478,7 +478,7 @@ contract SeraSOR_CoverageGaps is TestHelper {
     }
 
     // ====================================================================
-    //   Custom Slippage Shares AND Protocol Fees together
+    //  Custom Slippage Shares AND Protocol Fees together
     //
     //  Leg 1: A -> B with 10% Taker/Maker fees AND 100 B spread.
     //  Shares: 25% Maker, 25% Taker, 50% Protocol.

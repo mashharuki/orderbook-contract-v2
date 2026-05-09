@@ -9,7 +9,6 @@ import "../src/SeraBatcher.sol";
 
 contract DeployScript is Script {
     function run() external {
-        // 
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
 
@@ -27,13 +26,11 @@ contract DeployScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // 
         Vault vault = new Vault(deployer);
         console.log("Vault deployed at:", address(vault));
 
         Sera sera = new Sera(deployer, vault);
 
-        // 
         vault.grantRole(vault.TRADER_ROLE(), address(sera));
         console.log("Granted TRADER_ROLE to Sera");
 
