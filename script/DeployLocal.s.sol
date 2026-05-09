@@ -20,11 +20,8 @@ import "../src/mock/MockStableCoinDecimals.sol";
  *   - TOKEN_D: WBTC (8-decimal MockStableCoinDecimals)
  *   - TOKEN_E: WETH (18-decimal MockStableCoinDecimals)
  *
- * The 5-token fixture is required for multi-leg SOR tests (Group K
- * SOR coverage, SOR coverage, SOR coverage, SOR coverage, plus
- * decimal/pair-shape matrix decimal/pair-shape matrix). Pair registration is
- * handled by the external setup (NOT this script) so deploy
- * stays minimal and admin-token-driven.
+ * The 5-token fixture supports multi-leg SOR tests and a decimal /
+ * pair-shape matrix across 6/8/18-decimal mixes.
  *
  * Configures: whitelist all 5 tokens, EXECUTOR_ROLE, TRADER_ROLE,
  * trusted router.
@@ -65,21 +62,16 @@ contract DeployLocalScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         // 1. Deploy Mock Tokens
-        // CRITICAL: keep TOKEN_A and TOKEN_B as the FIRST and SECOND
-        // contracts deployed. downstream tooling hardcodes their
-        // Anvil-deterministic addresses (0x5fbdb...aa3 and 0xe7f17...512)
-        // as fallback defaults, which only resolve correctly when these
-        // are nonces 0 and 1 of the deployer.
+        // Order matters: TOKEN_A and TOKEN_B must be deployed FIRST and
+        // SECOND so they land at deterministic Anvil addresses (nonces 0
+        // and 1 of the deployer). Downstream tooling depends on this.
         MockStableCoin tokenA = new MockStableCoin("USDT");
         MockStableCoin tokenB = new MockStableCoin("SGD");
         console.log("Token A (USDT, 18d):", address(tokenA));
         console.log("Token B (SGD, 18d): ", address(tokenB));
 
-        // 1b. Deploy non-18-decimal tokens. TOKEN_C/D/E unlock the
-        // multi-leg SOR test multi-leg SOR coverage and
-        // the decimal/pair-shape matrix (decimal/pair-shape matrix). The order
-        // is deterministic; broadcast tooling extracts these as
-        // TOKEN_C/D/E in deploy order from the broadcast file.
+        // 1b. Deploy non-18-decimal tokens (TOKEN_C/D/E) for multi-leg
+        // SOR tests and the decimal / pair-shape matrix.
         MockStableCoinDecimals tokenC = new MockStableCoinDecimals("USDC", 6);
         MockStableCoinDecimals tokenD = new MockStableCoinDecimals("WBTC", 8);
         MockStableCoinDecimals tokenE = new MockStableCoinDecimals("WETH", 18);

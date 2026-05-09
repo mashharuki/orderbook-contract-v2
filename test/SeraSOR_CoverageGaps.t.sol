@@ -251,7 +251,7 @@ contract SeraSOR_CoverageGaps is TestHelper {
         // then spend the residual across later input-token legs. This coverage
         // file keeps the older mixed wallet+vault shape below because it also
         // exercises the vault top-up path; the pure over-pull case is pinned in
-        // SeraSOR_OptionB's shared-order shared-order regression.
+        // SeraSOR_OptionB's shared-order multi-fill test.
 
         // Let's switch to the clean approach: wallet funds 1000, vault funds 1000.
         // This actually tests mixed funding which is even better.

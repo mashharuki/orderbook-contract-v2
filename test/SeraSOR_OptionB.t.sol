@@ -20,7 +20,7 @@ import "./TestHelper.sol";
  *        - Sentinel + non-zero initialDepositAmount on first leg.
  *        - Boundary: initialDepositAmount == matchAmount0.
  *        - Vault top-up: initialDepositAmount < matchAmount0 with vault contribution.
- *        - shared-order multi-fill: one taker order filled by multiple makers.
+ *        - Shared-order multi-fill: one taker order filled by multiple makers.
  *        - Gas overhead bound for single-leg.
  */
 contract SeraSOR_OptionB_Test is TestHelper {
@@ -384,9 +384,10 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
     // ============ TEST #10: SHARED-ORDER MULTI-FILL ============
 
-    /// @notice OA emits one shared taker order for same-pair multi-fill swaps.
-    ///         The wallet pull is larger than the first leg, and the residual
-    ///         input-token transient feeds the second maker fill.
+    /// @notice One shared taker order can be filled across multiple maker legs
+    ///         in the same SOR call. The wallet pull is larger than the first
+    ///         leg, and the residual input-token transient feeds the second
+    ///         maker fill.
     function test_OptionB_SharedOrderMultiFillSamePair_HappyPath() public {
         _mintAndDeposit(maker1, address(eth), 6 ether, sera);
         _mintAndDeposit(maker2, address(eth), 4 ether, sera);

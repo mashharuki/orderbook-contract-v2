@@ -36,7 +36,7 @@
 14. [BPS Precision](#14-bps-precision-serabps_precisiontsol--15-tests)
 15. [Smart-Contract Wallet Signers (EIP-1271)](#15-smart-contract-wallet-signers-seraeip1271tsol--8-tests)
 16. [EIP-7702 Delegated EOAs](#16-eip-7702-delegated-eoas-sera7702tsol--9-tests)
-17. [Vault Solvency Invariant](#17-vault-solvency-vault-solvency-invariant-serainvariant034tsol--3-tests)
+17. [Vault Solvency Invariant](#17-vault-solvency-invariant-serainvariant034tsol--3-tests)
 
 ---
 
@@ -394,7 +394,7 @@ Validates that EOAs delegated under EIP-7702 — both self-delegated and delegat
 
 ## 17. Vault Solvency Invariant (`SeraInvariant034.t.sol` — 3 tests)
 
-Targeted invariant fuzz of vault solvency (vault insolvency). The handler exercises every external entry point on Vault + Sera + SOR + Batcher with non-zero fees, SOR routing, and emergency / instant withdraws over a closed set of `{actors, treasury}`.
+Targeted invariant fuzz on vault solvency. The handler exercises every external entry point on Vault + Sera + SOR + Batcher with non-zero fees, SOR routing, and emergency / instant withdraws over a closed set of `{actors, treasury}`.
 
 | # | Test | Type | Assertion |
 |---|------|------|-----------|

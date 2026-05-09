@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 pragma solidity 0.8.24;
 
-// Invariant fuzzing targeted at vault solvency (vault insolvency).
+// Invariant fuzzing for vault solvency.
 //
 // The static audit found no mechanism in the current contracts that can
 // grow balances[token][user] without a matching physical inflow. This
