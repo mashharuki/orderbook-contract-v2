@@ -20,3 +20,6 @@ coverage/
 .DS_Store
 lcov.info
 run_slither.sh
+
+# Certora internal files
+.certora_internal/
