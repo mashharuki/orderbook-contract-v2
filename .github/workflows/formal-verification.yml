@@ -1,0 +1,121 @@
+name: Formal Verification Tests
+
+on:
+  push:
+    branches: [ main, develop, formal-verification ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  # ============================================================
+  # Foundry Invariant Tests - Parallel Execution
+  # ============================================================
+  foundry-invariant-tests:
+    name: Foundry Invariant Tests (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Invariant Tests (Shard ${{ matrix.shard }}/5)
+        run: |
+          forge test --match-path "test/invariant/*.t.sol" \
+            --fuzz-runs 256 \
+            --fuzz-seed 12345 \
+            --shard ${{ matrix.shard }}/5 \
+        timeout-minutes: 30
+
+  # ============================================================
+  # Halmos Symbolic Execution
+  # ============================================================
+  halmos-tests:
+    name: Halmos Symbolic Execution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install Halmos
+        run: pip3 install halmos
+
+      - name: Run Halmos Tests (Parallel by Contract)
+        run: |
+          # Run each contract in parallel
+          halmos --match-contract VaultSymbolicSimple &
+          halmos --match-contract SeraSymbolicAdvanced &
+          halmos --match-contract SORSymbolic &
+          halmos --match-contract MathSymbolic &
+          wait
+        timeout-minutes: 45
+        env:
+          HALMOS_SOLVER_TIMEOUT: 300
+          HALMOS_LOOP: 3
+
+  # ============================================================
+  # Foundry Fuzz Tests - High Intensity
+  # ============================================================
+  foundry-fuzz-tests:
+    name: Foundry Fuzz Tests (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Fuzz Tests (Shard ${{ matrix.shard }}/2)
+        run: |
+          forge test --match-path "test/*Fuzz*.t.sol" \
+            --fuzz-runs 10000 \
+            --shard ${{ matrix.shard }}/2 \
+        timeout-minutes: 60
+
+  # ============================================================
+  # Fast Smoke Tests (Quick Feedback)
+  # ============================================================
+  smoke-tests:
+    name: Fast Smoke Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Quick Invariant Tests
+        run: |
+          forge test --match-path "test/invariant/*.t.sol" \
+            --fuzz-runs 16 \
+            -j4 \
+        timeout-minutes: 5
