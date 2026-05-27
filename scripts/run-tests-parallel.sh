@@ -61,41 +61,21 @@ FAILED=0
 START_TIME=$(date +%s)
 
 # ============================================================
-# Run Foundry Invariant Tests (Parallel Sharding)
+# Run Foundry Invariant Tests (Parallel with -j flag)
 # ============================================================
 run_foundry_tests() {
-    log_info "Running Foundry Invariant Tests with $JOBS parallel shards..."
+    log_info "Running Foundry Invariant Tests with -j$JOBS parallel jobs..."
     
-    local pids=()
-    for i in $(seq 1 $JOBS); do
-        (
-            log_info "  Shard $i/$JOBS starting..."
-            if forge test \
-                --match-path "test/invariant/*.t.sol" \
-                --fuzz-runs $FUZZ_RUNS \
-                --shard $i/$JOBS \
-                > "test-logs/foundry-shard-$i.log" 2>&1; then
-                log_info "  Shard $i/$JOBS PASSED"
-            else
-                log_error "  Shard $i/$JOBS FAILED"
-                exit 1
-            fi
-        ) &
-        pids+=($!)
-    done
-    
-    # Wait for all shards
-    for pid in "${pids[@]}"; do
-        if ! wait $pid; then
-            FAILED=1
-        fi
-    done
-    
-    if [ $FAILED -eq 0 ]; then
-        log_info "All Foundry Invariant Tests PASSED"
+    if forge test \
+        --match-path "test/invariant/*.t.sol" \
+        --fuzz-runs $FUZZ_RUNS \
+        -j$JOBS \
+        > "test-logs/foundry-invariant.log" 2>&1; then
+        log_info "Foundry Invariant Tests PASSED"
     else
-        log_error "Some Foundry Invariant Tests FAILED"
-        log_info "Check test-logs/foundry-shard-*.log for details"
+        log_error "Foundry Invariant Tests FAILED"
+        log_info "Check test-logs/foundry-invariant.log for details"
+        FAILED=1
     fi
 }
 
