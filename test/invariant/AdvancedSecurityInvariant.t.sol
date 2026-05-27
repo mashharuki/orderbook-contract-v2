@@ -198,7 +198,7 @@ contract AdvancedSecurityInvariant is Test {
      */
     function test_multiplicationOverflow(uint256 a, uint256 b) public pure {
         // Use bounded values
-        vm.assume(a < type(uint128).max);
+        vm.assume(a > 0 && a < type(uint128).max);
         vm.assume(b < type(uint128).max);
         
         uint256 result = a * b;

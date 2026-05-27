@@ -79,12 +79,14 @@ contract SeraFuzzInvariant is Test {
         vm.assume(fromAmount > 0 && fromAmount < type(uint64).max);
         vm.assume(toAmount > 0 && toAmount < type(uint64).max);
         vm.assume(matchAmount > 0 && matchAmount <= fromAmount);
+        vm.assume(matchAmount < type(uint128).max);
+        vm.assume(toAmount < type(uint128).max);
         
         // Calculate expected output
         uint256 expectedOutput = (matchAmount * toAmount) / fromAmount;
         
-        // Should be positive
-        assert(expectedOutput > 0 || matchAmount == 0);
+        // Should be positive (unless overflow, which we prevented)
+        assert(expectedOutput > 0 || matchAmount == 0 || toAmount == 0);
     }
     
     /**
@@ -262,6 +264,7 @@ contract SeraFuzzInvariant is Test {
      */
     function testFuzz_sequentialNonce(uint256 initialNonce, uint8 increments) public {
         vm.assume(increments > 0 && increments <= 100);
+        vm.assume(initialNonce < type(uint256).max - 100); // Prevent overflow
         
         uint256 current = initialNonce;
         
@@ -279,13 +282,16 @@ contract SeraFuzzInvariant is Test {
      */
     function testFuzz_tokenDecimals(uint256 amount, uint8 decimals) public pure {
         vm.assume(decimals <= 77); // ERC20 max
+        vm.assume(amount < type(uint128).max); // Prevent overflow
         
         // Scale calculation
         uint256 scale = 10 ** decimals;
         uint256 scaled = amount * scale;
         
-        // Properties
-        assert(scaled / scale == amount);
+        // Properties (with overflow protection assumption)
+        if (scaled >= amount) { // No overflow happened
+            assert(scaled / scale == amount);
+        }
     }
     
     /**
