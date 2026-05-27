@@ -281,7 +281,7 @@ contract SeraFuzzInvariant is Test {
      * @notice Fuzz test token decimal handling
      */
     function testFuzz_tokenDecimals(uint256 amount, uint8 decimals) public pure {
-        vm.assume(decimals <= 77); // ERC20 max
+        vm.assume(decimals <= 38); // Safe for uint256 (10^38 < 2^256)
         vm.assume(amount < type(uint128).max); // Prevent overflow
         
         // Scale calculation
@@ -289,7 +289,7 @@ contract SeraFuzzInvariant is Test {
         uint256 scaled = amount * scale;
         
         // Properties (with overflow protection assumption)
-        if (scaled >= amount) { // No overflow happened
+        if (scaled >= amount && scale > 0) { // No overflow happened
             assert(scaled / scale == amount);
         }
     }
