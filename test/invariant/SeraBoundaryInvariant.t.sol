@@ -201,7 +201,7 @@ contract SeraBoundaryInvariant is Test {
     }
     
     // Test timestamp boundaries
-    function test_timestampBoundaries() public pure {
+    function test_timestampBoundaries() public view {
         uint256 currentTimestamp = block.timestamp;
         
         // Past timestamp

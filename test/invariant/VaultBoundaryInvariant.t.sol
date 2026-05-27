@@ -137,7 +137,7 @@ contract VaultBoundaryInvariant is Test {
     }
     
     // Test SafeERC20 boundary
-    function test_safeERC20Boundary() public pure {
+    function test_safeERC20Boundary() public view {
         // Contract with no code should revert
         address noCode = address(0x1234567890123456789012345678901234567890);
         assert(noCode.code.length == 0);
