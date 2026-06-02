@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -n "${SERA_SOLC_0_8_24:-}" && -x "${SERA_SOLC_0_8_24}" ]]; then
+    exec "${SERA_SOLC_0_8_24}" "$@"
+fi
+
+candidates=(
+    "$HOME/Library/Caches/hardhat-nodejs/compilers-v2/macosx-amd64/solc-macosx-amd64-v0.8.24+commit.e11b9ed9"
+    "$HOME/Library/Caches/hardhat-nodejs/compilers-v3/macosx-amd64/solc-macosx-amd64-v0.8.24+commit.e11b9ed9"
+    "$HOME/.solcx/solc-v0.8.24"
+)
+
+for candidate in "${candidates[@]}"; do
+    if [[ -x "$candidate" ]]; then
+        exec "$candidate" "$@"
+    fi
+done
+
+if command -v solc >/dev/null 2>&1 && solc --version | grep -q "Version: 0.8.24"; then
+    exec solc "$@"
+fi
+
+cat >&2 <<'EOF'
+Could not find an executable solc 0.8.24.
+
+Set SERA_SOLC_0_8_24 to a solc 0.8.24 binary, or install/cache solc 0.8.24.
+Example:
+  SERA_SOLC_0_8_24=/path/to/solc-0.8.24 certoraRun certora/specs/Sera.conf
+EOF
+exit 127
