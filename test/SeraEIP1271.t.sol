@@ -325,7 +325,7 @@ contract SeraEIP1271Test is TestHelper {
             walletOwnerPK,
             address(smartWallet), // taker = smart wallet address
             address(usdc), address(eth),
-            0, 0,
+            type(uint256).max, 1,
             address(smartWallet),
             0,
             block.timestamp,
@@ -337,7 +337,7 @@ contract SeraEIP1271Test is TestHelper {
         sor.executeIntent(
             matches,
             sorSig,
-            IntentParams(address(smartWallet), address(usdc), address(eth), 0, 0, address(smartWallet), 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            IntentParams(address(smartWallet), address(usdc), address(eth), type(uint256).max, 1, address(smartWallet), 0, block.timestamp, uint48(block.timestamp + 1 days)),
             3,
             0,
             bytes("")
@@ -392,7 +392,7 @@ contract SeraEIP1271Test is TestHelper {
             counterpartyPK,
             address(smartWallet),
             address(usdc), address(eth),
-            0, 0,
+            type(uint256).max, 1,
             address(smartWallet),
             0,
             block.timestamp,
@@ -405,7 +405,7 @@ contract SeraEIP1271Test is TestHelper {
         sor.executeIntent(
             matches,
             badSig,
-            IntentParams(address(smartWallet), address(usdc), address(eth), 0, 0, address(smartWallet), 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            IntentParams(address(smartWallet), address(usdc), address(eth), type(uint256).max, 1, address(smartWallet), 0, block.timestamp, uint48(block.timestamp + 1 days)),
             3,
             0,
             bytes("")

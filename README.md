@@ -25,13 +25,13 @@ This repository contains **Solidity + Foundry** based order book matching contra
 - ✅ **Dual-Authorization Withdrawals**:
   - **Delayed**: User-initiated via `emergencyWithdraw()`, 7200 blocks (~24h) delay with 14400 blocks (~48h) expiration
   - **Instant**: Dual-signature (`executeInstantWithdrawDualSig`) with user + executor EIP-712 signatures
-- ✅ **Smart Order Routing (SOR)**: Multi-leg atomic routing via `SeraSOR.executeIntent()` with SOR-based signing. The taker signs an `IntentParams` (SOR parameters) struct covering `(taker, inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)`. The `taker` field cryptographically binds the signer's identity inside the EIP-712 struct, enabling EIP-1271 smart contract wallet support. The executor constructs optimal route legs freely. Features include transient balance optimization (via `uniqueTokenCount`), signed wallet funding via `initialDepositAmount`, enforced output destination via signed `recipient`, and strict `TransientBalanceNotZero` enforcement for intermediate balances.
+- ✅ **Smart Order Routing (SOR)**: Multi-leg atomic routing via `SeraSOR.executeIntent()` with SOR-based signing. The taker signs an `IntentParams` (SOR parameters) struct covering `(taker, inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)`. The `taker` field cryptographically binds the signer's identity inside the EIP-712 struct, enabling EIP-1271 smart contract wallet support. The executor constructs optimal route legs freely, but the signed envelope must carry non-zero bounds (`maxInputAmount > 0`, `minOutputAmount > 0`). Features include transient balance optimization (via `uniqueTokenCount`), signed wallet funding via `initialDepositAmount`, enforced output destination via signed `recipient`, and strict `TransientBalanceNotZero` enforcement for intermediate balances.
 - ✅ **Dynamic Fee Structure**: Per-order configurable `feeBps` (uint48) with expanded `BPS_DENOMINATOR = 1e14` for sub-basis-point granularity (e.g. $0.01 fee on $1M orders) + configurable slippage sharing via `SlippageShare` struct (maker/taker/protocol split)
-- ✅ **Signature Caching**: First fill verifies the EIP-712 signature via `SignatureChecker` (supports both EOA `ecrecover` and EIP-1271 contract signatures); subsequent partial fills skip re-verification since the `orderHash` is immutable and already authenticated
+- ✅ **Signature Caching**: Signature-checked order flows cache first-fill authentication in `filledAmount`, so subsequent partial fills of the same authenticated order skip redundant EIP-712 verification via `SignatureChecker` (supports both EOA `ecrecover` and EIP-1271 contract signatures)
 - ✅ **Transient Reentrancy Guard**: `ReentrancyGuardTransient` on all `Sera.sol` entry points — locks use transient storage (EIP-1153), lasting only for the cross-contract execution duration
 - ✅ **Ghost Liquidity Prevention**: Vault balance checked on every match
 - ✅ **Frozen User Policy**: Compromised accounts can be frozen (stops trading/deposits) but CAN withdraw
-- ✅ **Partial Fills**: On-chain tracking of filled amounts for order hashes
+- ✅ **Partial Fills**: On-chain tracking of filled amounts for reusable signature-checked order hashes; routed taker intents are instead bounded by signed envelopes and per-intent UUIDs
 - ✅ **Token Whitelist**: Governance-controlled whitelist with per-token minimum order amounts
 
 ---
@@ -79,12 +79,14 @@ orderbook-contract-v2/
 │   ├── SeraSOR_EdgeCase.t.sol         # Edge cases & emergency controls
 │   ├── SeraSOR_Precision.t.sol        # Precision & arithmetic
 │   ├── SeraSOR_AdvancedFuzz.t.sol     # Fuzz tests
+│   ├── SeraSOR_OptionB.t.sol          # Universal transient zero-balance / mixed-funding regressions
 │   ├── SeraSOR_Topology.t.sol         # Extreme topologies
 │   ├── SeraSOR_Settlement.t.sol       # Settlement optimization
 │   ├── SeraSOR_SettlementStress.t.sol # Settlement stress tests
 │   ├── SeraSOR_Positive_Slippage.t.sol # Positive slippage PoC (stub)
 │   ├── SeraSOR_Permit.t.sol           # EIP-2612 permit integration tests
 │   ├── SeraSOR_DeepAudit.t.sol        # Deep audit PoC validations
+│   ├── SeraSOR_SigBypassPoC.t.sol     # Signature-bypass regression PoC (fixed behavior)
 │   ├── SeraSOR_CoverageGaps.t.sol     # Coverage gap tests (diamond, wallet funding)
 │   ├── SeraSOR_AttackerSteal.t.sol    # Output hijacking fix validation
 │   ├── SeraEIP1271.t.sol              # EIP-1271 smart contract wallet signature tests
@@ -170,14 +172,14 @@ All documentation lives in the `readme/` folder. For architecture diagrams, secu
 - **Order struct**: packed `uint48` for `expiration` and `feeBps`; includes `initialDepositAmount` for signed SOR funding control and `uuid` for replay protection. `BPS_DENOMINATOR = 1e14` provides sub-basis-point fee granularity (e.g. $0.01 fee on $1M orders) within `uint48` storage.
 - **Slippage sharing**: configurable profit splits via the `SlippageShare` struct (`makerShareBps`, `takerShareBps`, `protocolShareBps`, `totalBps`).
 - **Withdrawal system**: dual-path — a 7200-block delayed emergency path (~24h, with a 14400-block / ~48h expiration window) and an instant dual-signature path requiring user + executor EIP-712 signatures.
-- **SOR signed-routing model**: the taker signs an `IntentParams` struct `(taker, inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)` once; the executor constructs optimal route legs freely at execution time. The `taker`, `recipient`, and `initialDepositAmount` fields are cryptographically committed to prevent identity spoofing, output hijacking, and unauthorized wallet pulls. The `taker` field binds the signer's address into the signed struct, enabling EIP-1271 smart-contract wallet support. Final-leg positive slippage follows the configured `SlippageShare` split. Any leftover intermediate transient balance triggers a `TransientBalanceNotZero` revert, enforcing strict fund conservation.
+- **SOR signed-routing model**: the taker signs an `IntentParams` struct `(taker, inputToken, outputToken, maxInput, minOutput, recipient, initialDepositAmount, uuid, deadline)` once; the executor constructs optimal route legs freely at execution time. The `taker`, `recipient`, and `initialDepositAmount` fields are cryptographically committed to prevent identity spoofing, output hijacking, and unauthorized wallet pulls. The `taker` field binds the signer's address into the signed struct, enabling EIP-1271 smart-contract wallet support. The routed path requires a non-zero envelope (`maxInputAmount > 0` and `minOutputAmount > 0`), so a taker's signed price bounds can never be silently disabled. Final-leg positive slippage follows the configured `SlippageShare` split. Any leftover intermediate transient balance triggers a `TransientBalanceNotZero` revert, enforcing strict fund conservation.
 
 ### Security
 
 - **Permit front-run protection**: `depositFundWithPermit` checks existing allowance before calling permit, neutralizing griefing attempts that race the permit nonce.
 - **Ghost liquidity prevention**: vault balance is verified on every match via `_validateMakerOrder` before any state changes.
 - **SOR replay protection**: per-user UUID nonce mapping (`isIntentUuidUsed[user][uuid]`) prevents replay without global nonce contention.
-- **SOR envelope guards**: taker-signed `maxInputAmount` and `minOutputAmount` cap total spending and floor total output across all route legs.
+- **SOR envelope guards**: taker-signed `maxInputAmount` and `minOutputAmount` cap total spending and floor total output across all route legs, and zero-valued bounds are rejected up front with `ZeroEnvelope`.
 - **Signed SOR recipient (diamond-safe)**: `recipient` is signed inside the SOR parameters; every terminal leg's `order0.recipient` is enforced to match. Prevents output hijacking in both linear and split/diamond topologies.
 - **Signed SOR wallet funding**: `initialDepositAmount` is signed inside the SOR parameters, so executors cannot modify the wallet-pull amount at execution time. The exact amount signed is the exact amount pulled.
 - **Price bounds**: `InvalidCostAmount` and `TokenMismatch` assertions in `SeraLib._executionValues`.
@@ -207,7 +209,7 @@ All documentation lives in the `readme/` folder. For architecture diagrams, secu
 - **Auditor:** CertiK
 - **Report:** [`audits/2026-04-30-certik-sera-final.pdf`](./audits/2026-04-30-certik-sera-final.pdf) — final, dated 2026-04-30
 - **Scope:** all first-party contracts under `src/` — `Sera`, `SeraSOR`, `SeraBatcher`, `SeraAdmin`, `SeraBase`, `SeraLib`, `Vault`, and `IVault`. Test fixtures, deploy scripts, mocks, and vendored / third-party libraries (`vendor/compound-timelock/`, `lib/openzeppelin-contracts/`, `lib/solady/`, `lib/forge-std/`) are out of scope.
-- **Status:** All in-scope findings have been addressed in the post-audit code. Proof-of-concept tests validating each finding live under [`test/SeraSOR_DeepAudit.t.sol`](./test/SeraSOR_DeepAudit.t.sol), with cross-references to the full test surface in [`test/summary.md`](./test/summary.md).
+- **Status:** All in-scope findings have been addressed in the post-audit code. Proof-of-concept tests validating findings live under [`test/SeraSOR_DeepAudit.t.sol`](./test/SeraSOR_DeepAudit.t.sol) and [`test/SeraSOR_SigBypassPoC.t.sol`](./test/SeraSOR_SigBypassPoC.t.sol), with cross-references to the full test surface in [`test/summary.md`](./test/summary.md).
 - For severity breakdown, individual findings, and remediation discussion, **see the PDF**.
 
 ---

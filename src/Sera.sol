@@ -350,7 +350,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         (uint256 executionValue0, uint256 executionValue1) = SeraLib._executionValues(_match, _match.matchAmount0, _match.matchAmount1);
 
         SettlementCalc memory calc =
-            _calculateSettlement(_match, executionValue0, executionValue1, _match.matchAmount0, _match.matchAmount1, orderHash0, orderHash1);
+            _calculateSettlement(_match, executionValue0, executionValue1, _match.matchAmount0, _match.matchAmount1, orderHash0, orderHash1, true);
 
         _executeVaultSettlement(
             _match.order0.user,
@@ -415,7 +415,8 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         uint256 effectiveAmount0,
         uint256 effectiveAmount1,
         bytes32 orderHash0,
-        bytes32 orderHash1
+        bytes32 orderHash1,
+        bool trackOrder0
     ) internal returns (SettlementCalc memory calc) {
         SlippageShare memory shares = slippageShares;
 
@@ -449,9 +450,18 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
         calc.protocolTake0 = calc.protocolFee0 + protocolSpread0;
         calc.protocolTake1 = calc.protocolFee1 + protocolSpread1;
 
-        filledAmount[orderHash0] += effectiveAmount0;
+        // order0's fill is persisted ONLY on the signature-checked matchOrders path (trackOrder0=true).
+        // On the signature-EXEMPT SOR taker path (trackOrder0=false) it is intentionally NOT written:
+        // the taker is bounded by the SOR envelope (maxInput/minOutput) + consumeIntentUuid, and writing
+        // the shared filledAmount for an unsigned taker leg is what let a taker-seeded hash disable the
+        // maker signature check in matchOrders.
+        if (trackOrder0) {
+            filledAmount[orderHash0] += effectiveAmount0;
+            calc.order0FullyFilled = (filledAmount[orderHash0] >= _match.order0.fromAmount);
+        } else {
+            calc.order0FullyFilled = (effectiveAmount0 >= _match.order0.fromAmount);
+        }
         filledAmount[orderHash1] += effectiveAmount1;
-        calc.order0FullyFilled = (filledAmount[orderHash0] >= _match.order0.fromAmount);
         calc.order1FullyFilled = (filledAmount[orderHash1] >= _match.order1.fromAmount);
     }
 
@@ -640,7 +650,7 @@ contract Sera is EIP712, SeraAdmin, ReentrancyGuardTransient {
     ) internal returns (uint256 takerReceives) {
         (uint256 executionValue0, uint256 executionValue1) = SeraLib._executionValues(_match, effectiveMatchAmount0, _match.matchAmount1);
         SettlementCalc memory calc =
-            _calculateSettlement(_match, executionValue0, executionValue1, effectiveMatchAmount0, _match.matchAmount1, takerHash, makerHash);
+            _calculateSettlement(_match, executionValue0, executionValue1, effectiveMatchAmount0, _match.matchAmount1, takerHash, makerHash, false);
 
         // Cache hot storage/calldata fields to avoid redundant reads
         address takerFromToken = _match.order0.fromToken;

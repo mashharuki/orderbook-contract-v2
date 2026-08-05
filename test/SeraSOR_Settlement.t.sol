@@ -81,9 +81,9 @@ contract SeraSOR_Settlement_Test is TestHelper {
         address _in = matches[0].order0.fromToken;
         address _out = matches[matches.length - 1].order0.toToken;
         uint48 _dl = uint48(block.timestamp + 1 days);
-        bytes memory sig = _signIntent(takerPK, taker, _in, _out, 0, 0, _r, _d, nonce, _dl, sera);
+        bytes memory sig = _signIntent(takerPK, taker, _in, _out, type(uint256).max, 1, _r, _d, nonce, _dl, sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(taker, _in, _out, 0, 0, _r, _d, nonce, _dl), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, _in, _out, type(uint256).max, 1, _r, _d, nonce, _dl), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     function _o(address user, address from, address to, uint256 fromAmt, uint256 toAmt, uint256 uuid)

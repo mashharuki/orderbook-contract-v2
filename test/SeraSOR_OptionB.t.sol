@@ -107,7 +107,7 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
         bytes memory sorSig = _signIntent(
             takerPK, taker, address(usdc), address(eth),
-            0, 0, taker, 1000 ether, 0,
+            type(uint256).max, 1, taker, 1000 ether, 0,
             uint48(block.timestamp + 1 days), sera
         );
 
@@ -119,7 +119,7 @@ contract SeraSOR_OptionB_Test is TestHelper {
         ));
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 1000 ether, 0, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 1000 ether, 0, uint48(block.timestamp + 1 days)),
             3, 0, bytes("")
         );
     }
@@ -155,14 +155,14 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
         bytes memory sorSig = _signIntent(
             takerPK, taker, address(usdc), address(eth),
-            0, 0, taker, 100 ether, 0,
+            type(uint256).max, 1, taker, 100 ether, 0,
             uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 100 ether, 0, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 100 ether, 0, uint48(block.timestamp + 1 days)),
             5, 0, bytes("")
         );
 
@@ -202,7 +202,7 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
         bytes memory sorSig = _signIntent(
             takerPK, taker, address(usdc), address(eth),
-            0, 0, taker, 100 ether, 0,
+            type(uint256).max, 1, taker, 100 ether, 0,
             uint48(block.timestamp + 1 days), sera
         );
 
@@ -214,7 +214,7 @@ contract SeraSOR_OptionB_Test is TestHelper {
         ));
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 100 ether, 0, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 100 ether, 0, uint48(block.timestamp + 1 days)),
             5, 0, bytes("")
         );
     }
@@ -242,7 +242,7 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
         bytes memory sorSig = _signIntent(
             takerPK, taker, address(usdc), address(eth),
-            0, 0, taker, 1000 ether, 0,
+            type(uint256).max, 1, taker, 1000 ether, 0,
             uint48(block.timestamp + 1 days), sera
         );
 
@@ -259,7 +259,7 @@ contract SeraSOR_OptionB_Test is TestHelper {
         ));
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 1000 ether, 0, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 1000 ether, 0, uint48(block.timestamp + 1 days)),
             3, 0, bytes("")
         );
 
@@ -292,14 +292,14 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
         bytes memory sorSig = _signIntent(
             takerPK, taker, address(usdc), address(eth),
-            0, 0, taker, 100 ether, 0,
+            type(uint256).max, 1, taker, 100 ether, 0,
             uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 100 ether, 0, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 100 ether, 0, uint48(block.timestamp + 1 days)),
             3, 0, bytes("")
         );
 
@@ -328,14 +328,14 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
         bytes memory sorSig = _signIntent(
             takerPK, taker, address(usdc), address(eth),
-            0, 0, taker, 1000 ether, 0,
+            type(uint256).max, 1, taker, 1000 ether, 0,
             uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 1000 ether, 0, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 1000 ether, 0, uint48(block.timestamp + 1 days)),
             3, 0, bytes("")
         );
 
@@ -366,14 +366,14 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
         bytes memory sorSig = _signIntent(
             takerPK, taker, address(usdc), address(eth),
-            0, 0, taker, 600 ether, 0,
+            type(uint256).max, 1, taker, 600 ether, 0,
             uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 600 ether, 0, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 600 ether, 0, uint48(block.timestamp + 1 days)),
             3, 0, bytes("")
         );
 
@@ -433,7 +433,11 @@ contract SeraSOR_OptionB_Test is TestHelper {
         assertEq(v.balanceOf(address(eth), taker), 10 ether, "taker should receive aggregate ETH from both makers");
         assertEq(v.balanceOf(address(usdc), maker1), 60 ether, "maker1 should receive USDC internally");
         assertEq(v.balanceOf(address(usdc), maker2), 40 ether, "maker2 should receive USDC internally");
-        assertEq(sera.filledAmount(takerHash), 100 ether, "shared taker order should be fully filled");
+        // FIX (drop taker-leg fill write): the routed taker order's fill is no longer persisted in
+        // `filledAmount` (redundant with the signed SOR envelope + consumeIntentUuid). The shared-order
+        // fan-out itself is fully exercised by the balance assertions above and below; the taker-side
+        // counter is intentionally 0. Input/scenario unchanged; only this counter assertion updated.
+        assertEq(sera.filledAmount(takerHash), 0, "routed taker fill intentionally not persisted (fix)");
         assertEq(usdc.balanceOf(address(sera)), 0, "no USDC dust in Sera");
         assertEq(eth.balanceOf(address(sera)), 0, "no ETH dust in Sera");
     }
@@ -458,12 +462,12 @@ contract SeraSOR_OptionB_Test is TestHelper {
 
         bytes memory sorSig = _signIntent(
             takerPK, taker, address(usdc), address(eth),
-            0, 0, taker, 0, 0,
+            type(uint256).max, 1, taker, 0, 0,
             uint48(block.timestamp + 1 days), sera
         );
 
         IntentParams memory intent = IntentParams(
-            taker, address(usdc), address(eth), 0, 0, taker, 0, 0,
+            taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, 0,
             uint48(block.timestamp + 1 days)
         );
 

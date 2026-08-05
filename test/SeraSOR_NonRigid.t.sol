@@ -102,10 +102,10 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         matches[0] = MatchData(takerLeg1, bytes(""), 1000 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         // Sentinel: consume all transient ETH from Leg 1
         matches[1] = MatchData(takerLeg2, bytes(""), type(uint256).max, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 1 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Taker gets BTC, makers get their tokens
         assertEq(btc.balanceOf(taker), 1 ether, "Taker received BTC");
@@ -124,11 +124,11 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         // Sentinel on first leg with no transient or wallet deposit
         matches[0] = MatchData(takerLeg1, bytes(""), type(uint256).max, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InvalidRoute.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     /// @notice Sentinel with zero transient balance available should revert
@@ -149,11 +149,11 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(takerLeg1, bytes(""), 1000 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         matches[1] = MatchData(takerLeg2, bytes(""), type(uint256).max, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InvalidRoute.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 2. ENVELOPE GUARDS ============
@@ -169,11 +169,11 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
         // Sign with minOutputAmount = 11 ether (above actual 10 ether output)
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 11 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 11 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InsufficientOutput.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 11 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 11 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     /// @notice minOutputAmount guard passes when output meets threshold
@@ -187,10 +187,10 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
         // Sign with minOutputAmount = 10 ether (exactly meets)
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 10 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 10 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 10 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 10 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(eth.balanceOf(taker), 10 ether, "Taker received ETH");
         assertEq(usdc.balanceOf(maker1), 1000 ether, "Maker1 received USDC");
@@ -207,11 +207,11 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
         // Sign with maxInputAmount = 999 ether (below actual 1000 ether input)
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 999 ether, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 999 ether, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.ExcessiveInput.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 999 ether, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 999 ether, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     /// @notice maxInputAmount guard passes when input meets threshold
@@ -225,10 +225,10 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
         // Sign with maxInputAmount = 1000 ether (exactly meets)
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 1000 ether, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(eth.balanceOf(taker), 10 ether, "Taker received ETH");
         assertEq(usdc.balanceOf(maker1), 1000 ether, "Maker1 received USDC");
@@ -251,11 +251,11 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
         // maxInputAmount = 999 ether, but total input = 600 (wallet) + 400 (vault) = 1000 ether
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 999 ether, 0, taker, 600 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 999 ether, 1, taker, 600 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.ExcessiveInput.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 999 ether, 0, taker, 600 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 999 ether, 1, taker, 600 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 3. BUILT-IN POSITIVE SLIPPAGE ============
@@ -277,10 +277,10 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         // Executor fills at 900 USDC (reduced from taker's max 1000)
         matches[0] = MatchData(takerOrder, bytes(""), 900 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
         // No minOutputAmount guard — taker gets executionValue0 = Ceil(900 * 10/1000) = 9 ETH
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Taker only spent 900 USDC (not 1000).
         // Default 25/25/50 shares on 1 ETH totalSpread1:
@@ -345,7 +345,7 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         // This should fail because the signature was over (1000, 10) not (0, 0)
         vm.prank(executor);
         vm.expectRevert(Sera.InvalidSignature.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     /// @notice Executor can't bypass minOutputAmount by passing a lower value
@@ -359,12 +359,12 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
         // Sign with minOutput=10 ether
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 10 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 10 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // Executor tries to pass minOutputAmount=5 ether (lower) — signature mismatch
         vm.prank(executor);
         vm.expectRevert(Sera.InvalidSignature.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 5 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 5 ether, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 6. FILLED AMOUNT CORRECTNESS ============
@@ -385,14 +385,19 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(takerLeg1, bytes(""), 1000 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         matches[1] = MatchData(takerLeg2, bytes(""), type(uint256).max, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 1 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
-        // Check that filledAmount for the sentinel leg recorded 10 ether (not type(uint256).max)
+        // FIX (drop taker-leg fill write): routed taker fills are no longer persisted, so the sentinel
+        // leg's `filledAmount` is 0. The sentinel still RESOLVES correctly — the 2-leg route above
+        // executes and settles without reverting; the resolved amount simply isn't recorded in the
+        // (maker-namespace) counter anymore. NOTE FOR AUDITORS: this test's original purpose (taker
+        // counter tracks effective, not sentinel) is obsoleted by the fix; retained as a regression
+        // that the taker counter is 0. Input/scenario unchanged; only the asserted value updated.
         bytes32 takerLeg2Hash = _getOrderHashMemory(matches[1].order0);
-        assertEq(sera.filledAmount(takerLeg2Hash), 10 ether, "FilledAmount should track effective amount (10), not sentinel");
+        assertEq(sera.filledAmount(takerLeg2Hash), 0, "routed taker fill not persisted; was: tracks effective amount (fix)");
     }
 
     // ============ 7. EVENT EMISSION ============
@@ -413,13 +418,13 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(takerLeg1, bytes(""), 1000 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         matches[1] = MatchData(takerLeg2, bytes(""), type(uint256).max, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 1 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // OrderMatched event: 3 indexed (orderHash0, user0, orderHash1)
         // 7 non-indexed: (token0, amount0, protocolTake0, user1, token1, amount1, protocolTake1)
         vm.prank(executor);
         vm.recordLogs();
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
         bytes32 orderMatchedSig = keccak256("OrderMatched(bytes32,address,address,uint256,uint256,bytes32,address,address,uint256,uint256)");
@@ -492,10 +497,10 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         matches[0] = MatchData(takerLeg1, bytes(""), 900 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         // Leg 2: sentinel consumes all 9 ETH transient
         matches[1] = MatchData(takerLeg2, bytes(""), type(uint256).max, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 1 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Default 25/25/50 shares.
         // Leg 1 (USDC→ETH, matchAmount0=900): totalSpread1 = 1 ETH →
@@ -582,11 +587,11 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(takerLeg1, bytes(""), 1000 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         matches[1] = MatchData(takerLeg2, bytes(""), 15 ether, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 2 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InvalidRoute.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 12. DYNAMIC FILL WITH FEES ============
@@ -618,10 +623,10 @@ contract SeraSOR_NonRigid_Test is TestHelper {
         matches[0] = MatchData(takerLeg1, bytes(""), 1000 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         // Sentinel consumes the 9 ETH from transient
         matches[1] = MatchData(takerLeg2, bytes(""), type(uint256).max, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 0.9 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Taker receives BTC
         assertEq(btc.balanceOf(taker), 0.9 ether, "Taker received 0.9 BTC");

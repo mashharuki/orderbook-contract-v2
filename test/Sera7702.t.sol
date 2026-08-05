@@ -332,14 +332,14 @@ contract Sera7702Test is TestHelper {
         });
 
         bytes memory sorSig = _signIntent(
-            eoaPK, eoa, address(usdc), address(eth), 0, 0, eoa, 0, block.timestamp, uint48(block.timestamp + 1 days), sera
+            eoaPK, eoa, address(usdc), address(eth), type(uint256).max, 1, eoa, 0, block.timestamp, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
         sor.executeIntent(
             matches,
             sorSig,
-            IntentParams(eoa, address(usdc), address(eth), 0, 0, eoa, 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            IntentParams(eoa, address(usdc), address(eth), type(uint256).max, 1, eoa, 0, block.timestamp, uint48(block.timestamp + 1 days)),
             3,
             0,
             bytes("")
@@ -390,14 +390,14 @@ contract Sera7702Test is TestHelper {
         });
 
         bytes memory sorSig = _signIntent(
-            sessionPK, eoa, address(usdc), address(eth), 0, 0, eoa, 0, block.timestamp, uint48(block.timestamp + 1 days), sera
+            sessionPK, eoa, address(usdc), address(eth), type(uint256).max, 1, eoa, 0, block.timestamp, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
         sor.executeIntent(
             matches,
             sorSig,
-            IntentParams(eoa, address(usdc), address(eth), 0, 0, eoa, 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            IntentParams(eoa, address(usdc), address(eth), type(uint256).max, 1, eoa, 0, block.timestamp, uint48(block.timestamp + 1 days)),
             3,
             0,
             bytes("")

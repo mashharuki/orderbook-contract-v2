@@ -31,6 +31,7 @@ contract SeraSOR is SeraBase {
     error TransientBalanceNotZero(address token, uint256 amount);
     error InsufficientOutput();
     error ExcessiveInput();
+    error ZeroEnvelope();
 
 
     // ============ Events ============
@@ -153,8 +154,10 @@ contract SeraSOR is SeraBase {
         }
 
         // Envelope guards
-        if (intent.maxInputAmount > 0 && takerInputCost > intent.maxInputAmount) revert ExcessiveInput();
-        if (intent.minOutputAmount > 0 && totalTakerOutput < intent.minOutputAmount) revert InsufficientOutput();
+        // Envelope now guaranteed nonzero by the ZeroEnvelope check in _validateAndConsumeIntent,
+        // so these are unconditional (the former `> 0 &&` prefixes are dead).
+        if (takerInputCost > intent.maxInputAmount) revert ExcessiveInput();
+        if (totalTakerOutput < intent.minOutputAmount) revert InsufficientOutput();
 
         // 4. Enforce transient zero-balance: every credit (wallet deposit + held leg output)
         //    must be matched by a debit before return.
@@ -192,6 +195,10 @@ contract SeraSOR is SeraBase {
         bytes calldata signature, IntentParams calldata p
     ) internal returns (address takerUser) {
         takerUser = p.taker;
+        // Reject the zero-sentinel envelope (Finding 1): both price bounds must be set, so the
+        // taker's only signed price protection on the routed path can never be silently disabled.
+        // Unbounded intents are not supported — a "market" swap must carry a real slippage floor.
+        if (p.maxInputAmount == 0 || p.minOutputAmount == 0) revert ZeroEnvelope();
         // Validate EIP-712 signature (supports both EOA and ERC-1271 smart contract wallets)
         bytes32 digest = sera.getIntentDigest(
             p.taker, p.inputToken, p.outputToken, p.maxInputAmount, p.minOutputAmount,

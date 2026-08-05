@@ -108,9 +108,9 @@ contract SeraRouteTest is TestHelper {
             signature1: _signOrder(maker1PK, makerOrder, sera),
             matchAmount1: 10 ether
         });
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(eth.balanceOf(taker), 10 ether);
         assertEq(usdc.balanceOf(maker1), 1000 ether);
@@ -165,12 +165,12 @@ contract SeraRouteTest is TestHelper {
             signature1: _signOrder(maker1PK, makerOrder, sera),
             matchAmount1: 10 ether
         });
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 600 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 600 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
 
         // Execute Route pulling EXACTLY 600 USDC from the external wallet.
         // The SOR calculates a 400 USDC shortfall to execute the 1000 USDC match, which it then delegates to the Sera.sol and Vault.sol ledgers to cover.
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 600 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 600 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Verification balances
         assertEq(eth.balanceOf(taker), 10 ether, "Taker successfully bought 10 ETH");
@@ -224,10 +224,10 @@ contract SeraRouteTest is TestHelper {
             signature1: _signOrder(maker1PK, makerOrder, sera),
             matchAmount1: 10 ether
         });
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(eth.balanceOf(taker), 10 ether);
         assertEq(usdc.balanceOf(maker1), 1000 ether);
@@ -308,9 +308,9 @@ contract SeraRouteTest is TestHelper {
             signature1: _signOrder(maker2PK, makerLeg2, sera),
             matchAmount1: 1 ether
         });
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(btc.balanceOf(taker), 1 ether);
         assertEq(usdc.balanceOf(maker1), 1000 ether);
@@ -358,9 +358,9 @@ contract SeraRouteTest is TestHelper {
             signature1: _signOrder(maker1PK, makerOrder, sera),
             matchAmount1: 5 ether
         });
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(eth.balanceOf(taker), 4.5 ether);
         assertEq(usdc.balanceOf(maker1), 450 ether);
@@ -462,11 +462,11 @@ contract SeraRouteTest is TestHelper {
         matches[1] =
             MatchData(takerLeg2, bytes(""), 3000 ether, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 3 ether);
         matches[2] = MatchData(takerLeg3, bytes(""), 3 ether, makerLeg3, _signOrder(maker3PK, makerLeg3, sera), 5 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // Let's set the router in motion
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Verification
         // Taker inputs: 2000 USDC + 3000 USDC
@@ -612,9 +612,9 @@ contract SeraRouteTest is TestHelper {
             signature1: _signOrder(maker3PK, makerLeg3, sera),
             matchAmount1: 9 ether
         });
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(eth.balanceOf(taker), 10 ether);
         assertEq(usdc.balanceOf(maker1), 100 ether);
@@ -715,10 +715,10 @@ contract SeraRouteTest is TestHelper {
             MatchData(takerLeg2, bytes(""), 900 ether, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 0.9 ether);
         matches[2] =
             MatchData(takerLeg3, bytes(""), 0.9 ether, makerLeg3, _signOrder(maker3PK, makerLeg3, sera), 9 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
         vm.expectRevert(Sera.OrderExpired.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // All legs reverted — no state changed
         assertEq(sera.vault().balanceOf(address(usdc), taker), 1000 ether, "Taker vault unchanged");
@@ -761,11 +761,11 @@ contract SeraRouteTest is TestHelper {
         matches[0] =
             MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
 
-        bytes memory sorSig = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // First execution succeeds
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Prepare second execution with different maker/uuid but same intent
         Order memory makerOrder2 = makerOrder;
@@ -775,7 +775,7 @@ contract SeraRouteTest is TestHelper {
         // Second execution with same intent signature reverts
         vm.prank(executor);
         vm.expectRevert(Sera.UuidAlreadyUsed.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // test_matchOrdersRouted_RejectsMakerWithRouteHash removed — routeHash field no longer exists in Order struct.
@@ -840,10 +840,10 @@ contract SeraRouteTest is TestHelper {
             MatchData(takerOrder1, bytes(""), 500 ether, makerOrder1, _signOrder(maker1PK, makerOrder1, sera), 5 ether);
         matches[1] =
             MatchData(takerOrder2, bytes(""), 500 ether, makerOrder2, _signOrder(maker2PK, makerOrder2, sera), 5 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InvalidRoute.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // test_matchOrders_RejectsRouteBoundOrder removed — routeHash field and OrderRequiresRoute error no longer exist.
@@ -881,14 +881,14 @@ contract SeraRouteTest is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] =
             MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(owner);
         sera.setTrustedRouter(address(0x123)); // Set to dummy router
 
         vm.prank(executor);
         vm.expectRevert(Sera.RouterNotTrusted.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     /// @notice Bad route signature reverts
@@ -926,10 +926,10 @@ contract SeraRouteTest is TestHelper {
             MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
 
         // Sign with maker1's key instead of taker's
-        bytes memory sorSig = _signIntent(maker1PK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(maker1PK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
         vm.expectRevert(Sera.InvalidSignature.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ Fund Source / Destination Matrix Tests ============
@@ -967,9 +967,9 @@ contract SeraRouteTest is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] =
             MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Taker received ETH directly in wallet
         assertEq(eth.balanceOf(taker), 10 ether, "Taker should receive ETH in wallet");
@@ -1011,9 +1011,9 @@ contract SeraRouteTest is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] =
             MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, address(0), 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, address(0), 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, address(0), 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, address(0), 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Taker received ETH inside vault ledger
         assertEq(eth.balanceOf(taker), 0, "Taker wallet ETH should be 0");
@@ -1056,9 +1056,9 @@ contract SeraRouteTest is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] =
             MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Taker got ETH in wallet, USDC was pulled directly from wallet
         assertEq(eth.balanceOf(taker), 10 ether, "Taker should receive ETH in wallet");
@@ -1102,9 +1102,9 @@ contract SeraRouteTest is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] =
             MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, address(0), 1000 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, address(0), 1000 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, address(0), 1000 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, address(0), 1000 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Taker got ETH credited to vault, USDC was pulled directly from wallet
         assertEq(eth.balanceOf(taker), 0, "Taker wallet ETH should be 0");
@@ -1151,9 +1151,9 @@ contract SeraRouteTest is TestHelper {
         MatchData[] memory matches = new MatchData[](1);
         matches[0] =
             MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, thirdParty, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, thirdParty, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, thirdParty, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, thirdParty, 1000 ether, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // ETH was sent to the third party, not the taker
         assertEq(eth.balanceOf(thirdParty), 10 ether, "Third party should receive ETH");
@@ -1208,7 +1208,7 @@ contract SeraRouteTest is TestHelper {
         });
 
         bytes memory sorSig = _signIntent(
-            takerPK, taker, address(usdc), address(usdc), 0, 0, taker, 0,
+            takerPK, taker, address(usdc), address(usdc), type(uint256).max, 1, taker, 0,
             block.timestamp, uint48(block.timestamp + 1 days), sera
         );
 
@@ -1216,7 +1216,7 @@ contract SeraRouteTest is TestHelper {
         vm.expectRevert(Sera.SameTokenMatch.selector);
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(usdc), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(usdc), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
             uint8(matches.length * 2 + 1), 0, bytes("")
         );
     }
@@ -1246,7 +1246,7 @@ contract SeraRouteTest is TestHelper {
         matches[0] = MatchData(o, bytes(""), 500 ether, o, sig, 500 ether);
 
         bytes memory sorSig = _signIntent(
-            takerPK, taker, address(usdc), address(usdc), 0, 0, taker, 0,
+            takerPK, taker, address(usdc), address(usdc), type(uint256).max, 1, taker, 0,
             block.timestamp, uint48(block.timestamp + 1 days), sera
         );
 
@@ -1254,7 +1254,7 @@ contract SeraRouteTest is TestHelper {
         vm.expectRevert(Sera.SameTokenMatch.selector);
         sor.executeIntent(
             matches, sorSig,
-            IntentParams(taker, address(usdc), address(usdc), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
+            IntentParams(taker, address(usdc), address(usdc), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)),
             uint8(matches.length * 2 + 1), 0, bytes("")
         );
     }

@@ -168,9 +168,9 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
         matches1[0] = MatchData(t1, bytes(""), 1000 ether, maker, _signOrder(maker1PK, maker, sera), 10 ether);
 
         // Pre-compute sig BEFORE prank
-        bytes memory rsig1 = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsig1 = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(matches1, rsig1, IntentParams(taker, matches1[0].order0.fromToken, matches1[matches1.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches1.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches1, rsig1, IntentParams(taker, matches1[0].order0.fromToken, matches1[matches1.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches1.length * 2 + 1), 0, bytes(""));
 
         bytes32 makerHash = _orderHash(maker);
         assertEq(sera.filledAmount(makerHash), 10 ether, "Maker 50% filled via route");
@@ -204,10 +204,10 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
         Order memory tA = _makeOrder(taker, address(usdc), address(eth), 2000 ether, 16 ether, 1);
         MatchData[] memory routeA = new MatchData[](1);
         routeA[0] = MatchData(tA, bytes(""), 500 ether, maker, _signOrder(maker1PK, maker, sera), 5 ether);
-        bytes memory rsigA = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsigA = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(routeA, rsigA, IntentParams(taker, routeA[0].order0.fromToken, routeA[routeA.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(routeA.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(routeA, rsigA, IntentParams(taker, routeA[0].order0.fromToken, routeA[routeA.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(routeA.length * 2 + 1), 0, bytes(""));
 
         bytes32 makerHash = _orderHash(maker);
         assertEq(sera.filledAmount(makerHash), 5 ether, "Maker 25% filled after route A");
@@ -216,10 +216,10 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
         Order memory tB = _makeOrder(taker, address(usdc), address(eth), 2000 ether, 16 ether, 1);
         MatchData[] memory routeB = new MatchData[](1);
         routeB[0] = MatchData(tB, bytes(""), 500 ether, maker, _signOrder(maker1PK, maker, sera), 5 ether);
-        bytes memory rsigB = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp + 1, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsigB = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp + 1, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(routeB, rsigB, IntentParams(taker, routeB[0].order0.fromToken, routeB[routeB.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp + 1, uint48(block.timestamp + 1 days)), uint8(routeB.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(routeB, rsigB, IntentParams(taker, routeB[0].order0.fromToken, routeB[routeB.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp + 1, uint48(block.timestamp + 1 days)), uint8(routeB.length * 2 + 1), 0, bytes(""));
 
         assertEq(sera.filledAmount(makerHash), 10 ether, "Maker 50% filled after route B");
     }
@@ -240,10 +240,10 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory rsig = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsig = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, rsig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, rsig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         Vault v = sera.vault();
 
@@ -280,10 +280,10 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1000 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory rsig = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp + 2, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsig = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp + 2, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, rsig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp + 2, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, rsig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp + 2, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         Vault v = sera.vault();
 
@@ -369,9 +369,9 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
         Order memory t1 = _makeOrder(taker, address(usdc), address(eth), 2000 ether, 16 ether, 1);
         MatchData[] memory r1 = new MatchData[](1);
         r1[0] = MatchData(t1, bytes(""), 1000 ether, maker, _signOrder(maker1PK, maker, sera), 10 ether);
-        bytes memory rsig1 = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp + 3, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsig1 = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp + 3, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(r1, rsig1, IntentParams(taker, r1[0].order0.fromToken, r1[r1.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp + 3, uint48(block.timestamp + 1 days)), uint8(r1.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(r1, rsig1, IntentParams(taker, r1[0].order0.fromToken, r1[r1.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp + 3, uint48(block.timestamp + 1 days)), uint8(r1.length * 2 + 1), 0, bytes(""));
 
         uint256 vaultUsdcActual = usdc.balanceOf(address(v));
         uint256 vaultUsdcLedger = v.balanceOf(address(usdc), taker) + v.balanceOf(address(usdc), maker1) + v.balanceOf(address(usdc), owner);
@@ -381,9 +381,9 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
         Order memory t2 = _makeOrder(taker, address(usdc), address(eth), 2000 ether, 16 ether, 1);
         MatchData[] memory r2 = new MatchData[](1);
         r2[0] = MatchData(t2, bytes(""), 1000 ether, maker, _signOrder(maker1PK, maker, sera), 10 ether);
-        bytes memory rsig2 = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp + 4, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsig2 = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp + 4, uint48(block.timestamp + 1 days), sera);
         vm.prank(executor);
-        sor.executeIntent(r2, rsig2, IntentParams(taker, r2[0].order0.fromToken, r2[r2.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp + 4, uint48(block.timestamp + 1 days)), uint8(r2.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(r2, rsig2, IntentParams(taker, r2[0].order0.fromToken, r2[r2.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp + 4, uint48(block.timestamp + 1 days)), uint8(r2.length * 2 + 1), 0, bytes(""));
 
         vaultUsdcActual = usdc.balanceOf(address(v));
         vaultUsdcLedger = v.balanceOf(address(usdc), taker) + v.balanceOf(address(usdc), maker1) + v.balanceOf(address(usdc), owner);
@@ -414,11 +414,11 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(t, bytes(""), 1001 ether, m, _signOrder(maker1PK, m, sera), 10 ether);
-        bytes memory rsig = _signIntent(takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, block.timestamp + 5, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsig = _signIntent(takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, block.timestamp + 5, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(Sera.OrderFilledAmountExceeded.selector);
-        sor.executeIntent(matches, rsig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp + 5, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, rsig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp + 5, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ========================================================================
@@ -477,10 +477,10 @@ contract SeraSOR_EdgeCase_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(t1, bytes(""), 1000 ether, m1, _signOrder(maker1PK, m1, sera), 10 ether);
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, m2, _signOrder(maker2PK, m2, sera), 1 ether);
-        bytes memory rsig = _signIntent(takerPK, taker, address(usdc), address(btc), 0, 0, taker, 0, block.timestamp + 6, uint48(block.timestamp + 1 days), sera);
+        bytes memory rsig = _signIntent(takerPK, taker, address(usdc), address(btc), type(uint256).max, 1, taker, 0, block.timestamp + 6, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, rsig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp + 6, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, rsig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp + 6, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         Vault v = sera.vault();
 

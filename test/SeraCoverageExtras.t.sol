@@ -353,10 +353,10 @@ contract SeraCoverageExtrasTest is TestHelper {
         matches[0] = MatchData(takerLeg1, "", 1000 ether, makerLeg1, _signOrder(makerPK, makerLeg1, sera), 50 ether);
         matches[1] = MatchData(takerLeg2, "", 50 ether, makerLeg2, _signOrder(mk2PK, makerLeg2, sera), 1 ether);
 
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         assertEq(btc.balanceOf(taker), 1 ether);
     }

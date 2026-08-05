@@ -1,6 +1,6 @@
 # SOR Test Suite — Detailed Audit Summary
 
-**321 tests** across 25 test suites (counted as `function test*` + `function invariant_*` declarations across `test/*.t.sol`), including fuzz, invariant, EIP-1271, and EIP-7702 suites. This document expands the SOR-focused audit suites in detail and uses the test files as the source of truth.
+**335 tests** across 27 test suites (counted as `function test*` + `function invariant_*` declarations across `test/*.t.sol`, excluding the `SeraSOR_Positive_Slippage.t.sol` stub with zero test functions), including fuzz, invariant, EIP-1271, and EIP-7702 suites. This document expands the SOR-focused audit suites in detail and uses the test files as the source of truth.
 
 ## Glossary
 
@@ -32,40 +32,43 @@
 10. [Settlement Stress](#10-settlement-stress-serasor_settlementstresststsol--13-tests)
 11. [Output Hijacking Fix](#11-output-hijacking-fix-serasor_attackerstealtsol--2-tests)
 12. [Deep Audit PoCs](#12-deep-audit-pocs-serasor_deepaudittsol--14-tests)
-13. [Coverage Gaps](#13-coverage-gaps-serasor_coveragegapstsol--6-tests)
-14. [BPS Precision](#14-bps-precision-serabps_precisiontsol--15-tests)
-15. [Smart-Contract Wallet Signers (EIP-1271)](#15-smart-contract-wallet-signers-seraeip1271tsol--8-tests)
-16. [EIP-7702 Delegated EOAs](#16-eip-7702-delegated-eoas-sera7702tsol--9-tests)
-17. [Vault Solvency Invariant](#17-vault-solvency-invariant-serainvariant034tsol--3-tests)
+13. [Signature-Bypass Regression PoC](#13-signature-bypass-regression-poc-serasor_sigbypasspoctsol--3-tests)
+14. [Coverage Gaps](#14-coverage-gaps-serasor_coveragegapstsol--6-tests)
+15. [BPS Precision](#15-bps-precision-serabps_precisiontsol--15-tests)
+16. [Smart-Contract Wallet Signers (EIP-1271)](#16-smart-contract-wallet-signers-seraeip1271tsol--8-tests)
+17. [EIP-7702 Delegated EOAs](#17-eip-7702-delegated-eoas-sera7702tsol--9-tests)
+18. [Vault Solvency Invariant](#18-vault-solvency-invariant-serainvariant034tsol--4-tests)
 
 ---
 
 ## Targeted Hardening Suites
 
-In addition to broad routing-math, zero-dust, replay-protection, and topology-stress coverage, the suite includes three sets of tests targeting specific invariants:
+In addition to broad routing-math, zero-dust, replay-protection, and topology-stress coverage, the suite includes several targeted hardening subsets:
 
 | Suite | Test | What it proves |
 |------|------|----------------|
 | `SeraSOR_AttackerSteal.t.sol` | `test_ExecutorCannotRedirectTerminalRecipient_RevertsInvalidRoute` | Executor cannot swap a signed terminal recipient for an attacker-controlled address. |
-| `SeraInvariant034.t.sol` | `invariant_solvency_closedUserSet`, `invariant_auxContractsHaveZeroLedger`, `test_spreadPathFires` | `IERC20.balanceOf(vault) >= Σ vault.balanceOf(token, user)` over `{actors, treasury}` for every external entry on Vault + Sera + SOR + Batcher with non-zero fees and SOR routing enabled. |
+| `SeraSOR_SigBypassPoC.t.sol` | `test_Fixed_SeedCannotBePlanted`, `test_Fixed_EmptySigDrainReverts`, `test_PoC_Control_UnseededEmptySigReverts` | Routed taker legs can no longer seed `filledAmount` and thereby bypass standalone signature verification. |
+| `SeraInvariant034.t.sol` | `invariant_solvency_closedUserSet`, `invariant_auxContractsHaveZeroLedger`, `invariant_seraHasNoDust`, `test_spreadPathFires` | `IERC20.balanceOf(vault) >= Σ vault.balanceOf(token, user)` over `{actors, treasury}` for every external entry on Vault + Sera + SOR + Batcher with non-zero fees and SOR routing enabled, while `address(sera)` remains dust-free. |
 | `Sera7702.t.sol` | 9 tests covering self-delegate + session-key paths for makers, SOR takers, and instant-withdraw flows. | EIP-7702 EOAs sign as themselves (self-delegate) or via session keys backed by the delegate; signatures flow through `SignatureChecker.isValidSignatureNowCalldata()` and fall through to ERC-1271 on the delegated code. Rejecting delegates or wrong signers reverts cleanly. |
 
 ---
 
 ## Additional Passing Suites
 
-The full 321-test count also includes passing suites that are not expanded section-by-section below:
+The full 335-test count also includes passing suites that are not expanded section-by-section below:
 
 | Suite | Tests |
 |------|-------|
 | `Sera_FullCoverage.t.sol` | 51 |
 | `Sera.t.sol` | 21 |
 | `SeraBatcher.t.sol` | 19 |
-| `SeraSOR_Permit.t.sol` | 13 |
+| `SeraSOR_Permit.t.sol` | 14 |
 | `SeraCoverageExtras.t.sol` | 6 |
 | `SeraFuzz.t.sol` | 5 |
 | `SeraInvariant.t.sol` | 5 |
 | `SeraAuditCoverage.t.sol` | 4 |
+| `SeraSOR_OptionB.t.sol` | 9 |
 | `SeraSOR_Positive_Slippage.t.sol` | 0 (stub — setUp only, no test functions) |
 
 ---
@@ -86,9 +89,9 @@ The full 321-test count also includes passing suites that are not expanded secti
 | 10 | `test_DynamicFill_WithMinOutputGuard` | Taker: 1000 USDC. M1: 10 ETH. M2: 1 BTC. | 2-leg sentinel + guards. `maxInput = 1000`, `minOutput = 1 BTC`. | `btc.bal(taker) = 1e18`. `usdc.bal(m1) = 1000e18`. `eth.bal(m2) = 10e18`. |
 | 11 | `test_BothGuards_Pass` | Taker: 1000 USDC. M1: 10 ETH. | 1-leg. `maxInput = 1000`, `minOutput = 10`. | `eth.bal(taker) = 10e18`. `usdc.bal(m1) = 1000e18`. |
 | 12 | `test_DynamicFill_WithBuiltInPositiveSlippage` | Taker: 1000 USDC. M1: 10 ETH (wants 900 USDC). M2: 1 BTC (wants 9 ETH). | Leg 1 fills 900 (positive slippage). Sentinel Leg 2 resolves to 9 ETH → 0.9 BTC. | `btc.bal(taker) = 0.9e18`. `vault.usdc(taker) = 100e18`. `eth.bal(m2) = 9e18`. |
-| 13 | `test_GuardParams_BoundToSignature` | Taker: 1000 USDC. M1: 10 ETH. | Signed with `maxInput=1000, minOutput=10`. Executor executes with `maxInput=0, minOutput=0`. | Reverts `InvalidSignature`. |
+| 13 | `test_GuardParams_BoundToSignature` | Taker: 1000 USDC. M1: 10 ETH. | Signed with `maxInput=1000, minOutput=10`. Executor executes with different guard params (`type(uint256).max`, `1`). | Reverts `InvalidSignature`. |
 | 14 | `test_Executor_CannotLowerGuard` | Same as #13. | Signed `minOutput=10`. Executor passes `minOutput=5`. | Reverts `InvalidSignature`. |
-| 15 | `test_FilledAmount_TracksDynamic` | Taker: 1000 USDC. M1: 10 ETH. M2: 1 BTC. | 2-leg sentinel. Sentinel resolves to 10 ETH. | `filledAmount(leg2Hash) = 10e18` (not `type(uint256).max`). |
+| 15 | `test_FilledAmount_TracksDynamic` | Taker: 1000 USDC. M1: 10 ETH. M2: 1 BTC. | 2-leg sentinel. Sentinel resolves to 10 ETH. | Routed taker fill is **not persisted**: `filledAmount(leg2Hash) = 0`. |
 | 16 | `test_OrderMatchedEvent_EmitsEffectiveAmount` | Same as #15. | 2-leg sentinel. | Event's `matchAmt0` field = `10e18` (not sentinel). |
 | 17 | `test_WalletFunded_DynamicFill` | Taker: 1000 USDC in **wallet** (not vault). `initialDeposit = 1000`. M1: 10 ETH. M2: 1 BTC. | 2-leg sentinel, wallet-funded. | `btc.bal(taker) = 1e18`. `usdc.bal(taker) = 0`. `usdc.bal(m1) = 1000e18`. `eth.bal(m2) = 10e18`. |
 | 18 | `test_PartialTransientConsumption_Reverts` | Taker: 1000 USDC + 5 ETH in vault. M1: 10 ETH. M2: 2 BTC. | Leg 1: 1000 USDC→10 ETH (hold). Leg 2: **fixed** 15 ETH→2 BTC (10 transient + 5 vault). | Reverts `InvalidRoute` (Vault mixing blocked). |
@@ -132,7 +135,7 @@ The full 321-test count also includes passing suites that are not expanded secti
 | 9 | `test_NoDust_OneSidedSpread` | `2500/2500/5000` | Token 0 spread 500 USDC. Token 1 spread 0 ETH. | `sera.bal = 0`. **Exact spreads**: Taker 125, Maker 125, Treasury 250. |
 | 10 | `test_TokenConservation_FullRoute` | `2000/3000/5000` | 2-leg+fees (2%/1%/1.5%/0.5%). 2000 USDC→20 ETH→3 BTC. | `totalSupply before == after` for all tokens. `sera.bal = 0`. Vault solvent. |
 | 11 | `test_PartialFill_TwoRoutes` | `3000/3000/4000` | Two routes filling 1000 each of 2000-total taker order (same maker). | `sera.bal = 0` after each. `vault.usdc(taker) = 120e18` (60×2 cumulative rebate). |
-| 12 | `test_NoDust_MaxFeesWithSpread` | `0/0/10000` | 100% fee on both sides + spread. | `sera.bal = 0`. Vault solvent. **Treasury exacts 100% of spread/fees**. |
+| 12 | `test_NoDust_MaxFeesWithSpread` | `0/0/10000` | Near-100% fee on both sides (`1e14 - 1`) + spread. | `sera.bal = 0`. Vault solvent. **Treasury effectively exacts the full spread/fees** while the taker still receives the non-zero output required by the SOR envelope. |
 | 13 | `test_NoDust_SharedMaker_TwoLegs` | `2500/2500/5000` | Same maker in both legs of a 2-leg route. | `sera.bal = 0` for 3 tokens. |
 | 14 | `test_NoDust_Standalone_Baseline` | `5000/0/5000` | Standalone (non-SOR) match with spread. | `sera.bal = 0`. |
 
@@ -164,7 +167,7 @@ The full 321-test count also includes passing suites that are not expanded secti
 |---|------|-------|------------|
 | 1 | `test_CombinedFeesAndSpread` | Shares `2500/2500/5000`. Taker 1000→8 ETH (1% fee). Maker 10→800 (0.5% fee). Spread: 200 USDC, 2 ETH. | `vault.actual ≥ vault.ledger` for USDC/ETH. `vault.usdc(owner) > 0`. `vault.eth(owner) > 0`. |
 | 2 | `test_PartialFillThenRoute` | Taker: 1000 USDC (1000→10 ETH order). | Standalone fill 500 → `filledAmount = 500`. Another standalone fill 500 → `filledAmount = 1000`. | `filledAmount = 1000e18`. |
-| 3 | `test_VaultSolvency_MaxFees` | `feeBps = 1e14` (100%) on both sides. | `vault.actual ≥ vault.ledger` for both tokens. |
+| 3 | `test_VaultSolvency_MaxFees` | `feeBps = 1e14 - 1` (near-100%) on both sides. | `vault.actual ≥ vault.ledger` for both tokens. |
 | 4 | `test_SmallAmountPrecision` | 100 wei USDC, 10 wei ETH (tiny amounts). | `vault.actual ≥ vault.ledger` at wei level. |
 
 ---
@@ -307,7 +310,7 @@ Tests validating all security findings, edge cases, and architectural observatio
 | 4 | `test_Audit5_NoCrossContractReplay` | Domain Separator | Orders are strictly bound to the specific `Sera.sol` instance using EIP-712 domain versioning. |
 | 5 | `test_Audit6_FullyFilledOrder_CannotBeRefilled` | Protocol Invariant | Ensures `matchAmount` limits execution and fully-filled orders systematically revert. |
 | 6 | `test_Audit7_SORUuid_PerUserIsolation` | Protocol Invariant | Uuid values are correctly scoped per-user. Mapped tracking does not contaminate across makers. |
-| 7 | `test_Audit8_MaxInputZero_MeansNoCap` | Envelope Guards | Zero-value envelope guard disables checks, consciously placing risk on the signer for terminal routing bounds. |
+| 7 | `test_Audit8_ZeroEnvelope_Reverts` | Envelope Guards | Zero-value SOR envelope bounds are rejected up front with `ZeroEnvelope`, so routed intents cannot silently disable their signed price bounds. |
 | 8 | `test_Audit9_EmergencyWithdraw_ExpiresAfterWindow` | L-3 | Grace period accurately cuts off withdrawals beyond the 7200-block window unless re-requested. |
 | 9 | `test_Audit10_RescueToken_CannotStealTracked` | Protocol Invariant | Ensure `rescueToken` explicitly bans retrieving actively whitelisted user liquidity tokens. |
 | 10 | `test_Audit11_SlippageShares_MustSumToTotal` | Configuration | Slippage spread distribution securely sums up to exactly the 10000 Bps denominator with no loss. |
@@ -318,7 +321,19 @@ Tests validating all security findings, edge cases, and architectural observatio
 
 ---
 
-## 13. Coverage Gaps (`SeraSOR_CoverageGaps.t.sol` — 6 tests)
+## 13. Signature-Bypass Regression PoC (`SeraSOR_SigBypassPoC.t.sol` — 3 tests)
+
+Targeted regression for the shared-`filledAmount` namespace bug that previously let a routed, unsigned taker leg seed the signature-skip cache used by `matchOrders`.
+
+| # | Test | What it proves |
+|---|------|----------------|
+| 1 | `test_Fixed_SeedCannotBePlanted` | The SOR taker path no longer persists `filledAmount`, so a forged routed taker order cannot seed the cache used by standalone signature checks. |
+| 2 | `test_Fixed_EmptySigDrainReverts` | Replaying the forged order in `matchOrders` with an empty signature now reverts `InvalidSignature`, leaving the victim's vault intact. |
+| 3 | `test_PoC_Control_UnseededEmptySigReverts` | Control path: without any seed attempt, the same empty-signature drain fails for the ordinary first-fill reason. |
+
+---
+
+## 14. Coverage Gaps (`SeraSOR_CoverageGaps.t.sol` — 6 tests)
 
 Tests specifically written to cover complex missing pathing logic, including wallet funding inside diamonds and terminal output verifications.
 
@@ -333,7 +348,7 @@ Tests specifically written to cover complex missing pathing logic, including wal
 
 ---
 
-## 14. BPS Precision (`SeraBPS_Precision.t.sol` — 15 tests)
+## 15. BPS Precision (`SeraBPS_Precision.t.sol` — 15 tests)
 
 Tests specifically validating the expanded `BPS_DENOMINATOR = 1e14` fee precision, overflow safety, and sub-basis-point granularity.
 
@@ -357,7 +372,7 @@ Tests specifically validating the expanded `BPS_DENOMINATOR = 1e14` fee precisio
 
 ---
 
-## 15. Smart-Contract Wallet Signers (`SeraEIP1271.t.sol` — 8 tests)
+## 16. Smart-Contract Wallet Signers (`SeraEIP1271.t.sol` — 8 tests)
 
 Validates that maker, taker, and instant-withdraw signature paths route through OpenZeppelin's `SignatureChecker`, which falls through to ERC-1271 `isValidSignature()` on contract wallets (Safe, Argent, ERC-4337 accounts).
 
@@ -374,7 +389,7 @@ Validates that maker, taker, and instant-withdraw signature paths route through 
 
 ---
 
-## 16. EIP-7702 Delegated EOAs (`Sera7702.t.sol` — 9 tests)
+## 17. EIP-7702 Delegated EOAs (`Sera7702.t.sol` — 9 tests)
 
 Validates that EOAs delegated under EIP-7702 — both self-delegated and delegating to a session-key contract — are accepted as signers across maker, SOR taker, and instant-withdraw flows. Behaviour piggybacks on `SignatureChecker`: when an EOA address has code (because of a 7702 delegation), the checker calls into the delegate's `isValidSignature`.
 
@@ -392,7 +407,7 @@ Validates that EOAs delegated under EIP-7702 — both self-delegated and delegat
 
 ---
 
-## 17. Vault Solvency Invariant (`SeraInvariant034.t.sol` — 3 tests)
+## 18. Vault Solvency Invariant (`SeraInvariant034.t.sol` — 4 tests)
 
 Targeted invariant fuzz on vault solvency. The handler exercises every external entry point on Vault + Sera + SOR + Batcher with non-zero fees, SOR routing, and emergency / instant withdraws over a closed set of `{actors, treasury}`.
 
@@ -400,4 +415,5 @@ Targeted invariant fuzz on vault solvency. The handler exercises every external 
 |---|------|------|-----------|
 | 1 | `invariant_solvency_closedUserSet` | invariant | `IERC20(token).balanceOf(vault) >= Σ vault.balanceOf(token, user)` over the closed user set. Strict combined form of `assertVaultSolvency` + `assertVaultLedgerConservation`. |
 | 2 | `invariant_auxContractsHaveZeroLedger` | invariant | Auxiliary contracts (Sera, SeraSOR, SeraBatcher) never accumulate vault ledger balances. |
-| 3 | `test_spreadPathFires` | reachability | Verifies the fuzzer actually exercises the spread / `creditLedger` paths it claims to cover (ghost counters > 0). |
+| 3 | `invariant_seraHasNoDust` | invariant | Post-Option-B universal zero-balance check: the `Sera` contract must hold zero orphaned ERC20 dust after successful SOR execution. |
+| 4 | `test_spreadPathFires` | reachability | Verifies the fuzzer actually exercises the spread / `creditLedger` paths it claims to cover (ghost counters > 0). |

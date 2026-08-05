@@ -88,9 +88,9 @@ contract SeraSOR_CoverageGaps is TestHelper {
         address _in = matches[0].order0.fromToken;
         address _out = matches[matches.length - 1].order0.toToken;
         uint48 _dl = uint48(block.timestamp + 1 days);
-        bytes memory sig = _signIntent(takerPK, taker, _in, _out, 0, 0, _r, _d, nonce, _dl, sera);
+        bytes memory sig = _signIntent(takerPK, taker, _in, _out, type(uint256).max, 1, _r, _d, nonce, _dl, sera);
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(taker, _in, _out, 0, 0, _r, _d, nonce, _dl), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, _in, _out, type(uint256).max, 1, _r, _d, nonce, _dl), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     function _assertNoDust(address token) internal view {
@@ -470,11 +470,11 @@ contract SeraSOR_CoverageGaps is TestHelper {
         // Sign with impossibly high minOutputAmount
         uint256 nonce = _execNonce++;
         bytes memory sig = _signIntent(
-            takerPK, taker, address(A), address(D), 0, 999 ether, taker, 0, nonce, uint48(block.timestamp + 1 days), sera
+            takerPK, taker, address(A), address(D), type(uint256).max, 999 ether, taker, 0, nonce, uint48(block.timestamp + 1 days), sera
         );
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InsufficientOutput.selector);
-        sor.executeIntent(matches, sig, IntentParams(taker, address(A), address(D), 0, 999 ether, taker, 0, nonce, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, address(A), address(D), type(uint256).max, 999 ether, taker, 0, nonce, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ====================================================================
@@ -508,10 +508,10 @@ contract SeraSOR_CoverageGaps is TestHelper {
         matches[1] = MatchData(t2, bytes(""), type(uint256).max, mk2, _signOrder(m2PK, mk2, sera), 230 ether);
 
         uint256 nonce = _execNonce++;
-        bytes memory sig = _signIntent(takerPK, taker, address(A), address(C), 0, 0, taker, 0, nonce, uint48(block.timestamp + 1 days), sera);
+        bytes memory sig = _signIntent(takerPK, taker, address(A), address(C), type(uint256).max, 1, taker, 0, nonce, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sig, IntentParams(taker, address(A), address(C), 0, 0, taker, 0, nonce, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sig, IntentParams(taker, address(A), address(C), type(uint256).max, 1, taker, 0, nonce, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Transient received 115 B, sent perfectly into Leg 2, yielding 230 C
         assertEq(C.balanceOf(taker), 230 ether, "Taker received 230 C");

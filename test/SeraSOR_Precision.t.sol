@@ -91,7 +91,7 @@ contract SeraSOR_Precision_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // Record pre-state
         Vault v = sera.vault();
@@ -99,7 +99,7 @@ contract SeraSOR_Precision_Test is TestHelper {
         uint256 takerUsdcBefore = v.balanceOf(address(usdc), taker);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Verify solvency: vault actual balance >= sum of all ledger entries
         uint256 totalLedgerUsdc = v.balanceOf(address(usdc), taker)
@@ -172,18 +172,21 @@ contract SeraSOR_Precision_Test is TestHelper {
         _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
         _mintAndDeposit(maker1, address(eth), 10 ether, sera);
 
-        // 100% fees on both sides (extreme — all goes to protocol)
+        // Near-100% fees on both sides (1 unit below BPS_DENOMINATOR — essentially all goes to
+        // protocol). Exactly 100% would net the taker 0, which the Finding-1 patch now rejects
+        // on the SOR path (minOutput>=1 + envelope floor); 1 unit below leaves ~dust to the taker
+        // so vault solvency under extreme fees is still exercised.
         Order memory takerOrder = _makeOrder(taker, address(usdc), address(eth), 1000 ether, 10 ether, 1);
-        takerOrder.feeBps = 100_000_000_000_000; // 100%
+        takerOrder.feeBps = 99_999_999_999_999; // ~100%
         Order memory makerOrder = _makeOrder(maker1, address(eth), address(usdc), 10 ether, 1000 ether, 2);
-        makerOrder.feeBps = 100_000_000_000_000; // 100%
+        makerOrder.feeBps = 99_999_999_999_999; // ~100%
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // With 100% fees, nothing should go to users, everything to protocol
         // But solvency must hold
@@ -212,10 +215,10 @@ contract SeraSOR_Precision_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 100, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Even at wei level, solvency holds
         Vault v = sera.vault();

@@ -30,6 +30,7 @@ Because orders are signed off-chain via the SOR, the system must handle the case
 Because the executor determines the exact ratios crossed via limit inputs, the smart contract strictly enforces mathematical invariants to protect both users:
 - **Price Bounds Check (`InvalidCostAmount`):** The engine mathematically asserts that the Taker is paying *at least* what the Maker's required exchange rate dictates, preventing executors from intentionally granting worse execution prices.
 - **Strict Token Alignments (`TokenMismatch`):** The Engine verifies identically matching `fromToken` and `toToken` properties between Order 0 and Order 1.
+- **Signed SOR Envelope:** Routed execution is bounded by taker-signed `maxInputAmount` and `minOutputAmount`. Zero-valued bounds are rejected with `ZeroEnvelope`, so the taker's price protection cannot be silently disabled.
 - **Implicit Rebate System:** When the two limits create a natural spread bonus, the engine partitions a configurable slippage share to the Protocol, the Maker, and the Taker. Critically, to protect physical vault solvency, the Protocol never *pushes* a bonus to a receiver. Instead, whoever *sent* the surplus token explicitly receives a discount applied seamlessly beneath their maximum spending limit.
 - **Pull-Only Settlement (SOR):** For routed legs, `_settleRoutedLegInternal` computes `neededFromTaker = makerReceives + protocolTake0` *before* vault interaction and only withdraws that net amount. The taker's spread share (`spreadToTaker0`) implicitly stays in the vault, eliminating redundant `safeTransfer` + `creditLedger` round-trips (~7k gas saved per vault-pulled leg).
 
@@ -55,13 +56,14 @@ Important distinction:
 - final-leg positive slippage still follows the configured `SlippageShare` split and reaches the taker recipient or Vault balance normally
 - intermediate surplus is either zero (executor-calibrated) or returned to taker vault (safety net)
 
-### SOR Hardening: Signed Recipient & Deposit Amount
-The SOR typed struct (`INTENT_TYPEHASH` — refers to SOR parameters in code) cryptographically commits to three critical fields:
+### SOR Hardening: Signed Envelope, Recipient & Deposit Amount
+The SOR typed struct (`INTENT_TYPEHASH` — refers to SOR parameters in code) cryptographically commits to four critical field groups:
 1. **`taker`** — The address of the signer (EOA or smart contract wallet). This binds the signer's identity into the EIP-712 struct, enabling EIP-1271 smart contract wallet support. The contract validates the signature against this address using `SignatureChecker.isValidSignatureNowCalldata()`, which supports both ECDSA (EOA) and ERC-1271 (contract wallet) signatures.
-2. **`recipient`** — The address where the taker's output is delivered. Every terminal leg in the route must have its `order0.recipient` match the signed SOR `recipient`. This prevents an executor from redirecting output to an arbitrary address (output hijacking).
-3. **`initialDepositAmount`** — The exact amount to pull from the taker's wallet. The contract verifies `matches[0].order0.initialDepositAmount == intent.initialDepositAmount` (SOR parameters) and uses this as the wallet pull amount. A value of `0` means vault-only settlement. This prevents an executor from pulling more tokens from the taker's wallet than authorized.
+2. **`maxInputAmount` / `minOutputAmount`** — The taker's signed price envelope. These bounds cap total routed input and floor total routed output across the whole path, and both must be non-zero or the route reverts `ZeroEnvelope` before settlement.
+3. **`recipient`** — The address where the taker's output is delivered. Every terminal leg in the route must have its `order0.recipient` match the signed SOR `recipient`. This prevents an executor from redirecting output to an arbitrary address (output hijacking).
+4. **`initialDepositAmount`** — The exact amount to pull from the taker's wallet. The contract verifies `matches[0].order0.initialDepositAmount == intent.initialDepositAmount` (SOR parameters) and uses this as the wallet pull amount. A value of `0` means vault-only settlement. This prevents an executor from pulling more tokens from the taker's wallet than authorized.
 
-Both fields are bundled into the `IntentParams` struct (SOR parameters — see `SeraLib.sol`) and passed as a single calldata parameter to `executeIntent` (SOR execution entry point), reducing stack depth and improving readability.
+All of these fields are bundled into the `IntentParams` struct (SOR parameters — see `SeraLib.sol`) and passed as a single calldata parameter to `executeIntent` (SOR execution entry point), reducing stack depth and improving readability.
 
 ## 8. Vault `creditLedger` Caller Invariant
 `Vault.creditLedger()` does not check physical token surplus on-chain before crediting balances. Instead, it relies on a strict caller invariant:

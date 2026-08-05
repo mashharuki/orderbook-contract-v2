@@ -267,12 +267,12 @@ contract SeraSOR_PermitTests is TestHelper {
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
 
         bytes memory sorSig = _signIntent(
-            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days), _sera()
+            takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, 500, uint48(block.timestamp + 1 days), _sera()
         );
 
         // Call executeSorWithPermit with empty permit — should work like executeIntent
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, 500, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
 
         assertEq(eth.balanceOf(taker), 10 ether, "Vault-only flow should work with empty permit");
     }
@@ -504,7 +504,7 @@ contract SeraSOR_PermitTests is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.EmptyRoute.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, 1200, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, 1200, uint48(block.timestamp + 1 days)), 3, block.timestamp + 1 days, bytes(""));
     }
 
     // =========================================================================

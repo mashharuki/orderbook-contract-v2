@@ -27,7 +27,7 @@ contract SeraHarness is Sera {
         bytes32 orderHash0,
         bytes32 orderHash1
     ) external returns (Sera.SettlementCalc memory) {
-        return _calculateSettlement(_match, executionValue0, executionValue1, _match.matchAmount0, _match.matchAmount1, orderHash0, orderHash1);
+        return _calculateSettlement(_match, executionValue0, executionValue1, _match.matchAmount0, _match.matchAmount1, orderHash0, orderHash1, true);
     }
 }
 

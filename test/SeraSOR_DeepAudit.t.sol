@@ -355,11 +355,11 @@ contract SeraSOR_DeepAudit is TestHelper {
 
         uint256 sorUuid = 42;
         bytes memory sorSig = _signIntent(
-            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days), sera
+            takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, sorUuid, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
 
         // Same uuid, same user — should revert
         _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
@@ -372,16 +372,17 @@ contract SeraSOR_DeepAudit is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(Sera.UuidAlreadyUsed.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, sorUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
     }
 
     // ===================================================================
-    // maxInputAmount = 0 means "no cap" — unbounded spending.
+    // maxInputAmount = 0 (or minOutputAmount = 0) is now REJECTED.
     //
-    // Verify: When maxInputAmount is 0, the envelope guard is skipped.
-    //         The taker's only protection is individual order limits.
+    // Finding 1 fix: a zero on either envelope bound disabled the guard
+    // (no cap / no floor). SeraSOR now rejects any zero-envelope intent
+    // up front with ZeroEnvelope, so the unbounded-spend path is gone.
     // ===================================================================
-    function test_Audit8_MaxInputZero_MeansNoCap() public {
+    function test_Audit8_ZeroEnvelope_Reverts() public {
         // Fund taker with a lot
         _mintAndDeposit(taker, address(usdc), 5000 ether, sera);
         _mintAndDeposit(maker1, address(eth), 50 ether, sera);
@@ -420,13 +421,14 @@ contract SeraSOR_DeepAudit is TestHelper {
             takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, 300, uint48(block.timestamp + 1 days), sera
         );
 
+        // A zero on either envelope bound is rejected before any settlement.
         vm.prank(executor);
+        vm.expectRevert(SeraSOR.ZeroEnvelope.selector);
         sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, 300, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
 
-        // Succeeded - all 5000 USDC were spent with no envelope cap
-        assertEq(v.balanceOf(address(usdc), taker), 0, "All 5000 USDC spent");
-        // Taker has recipient=taker (non-zero), so ETH is withdrawn to wallet
-        assertEq(eth.balanceOf(taker), 50 ether, "Taker received 50 ETH");
+        // Nothing was spent — the taker's full balance is intact.
+        assertEq(v.balanceOf(address(usdc), taker), 5000 ether, "No USDC spent");
+        assertEq(eth.balanceOf(taker), 0, "No ETH received");
     }
 
     // ===================================================================
@@ -536,11 +538,11 @@ contract SeraSOR_DeepAudit is TestHelper {
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
 
         bytes memory sorSig = _signIntent(
-            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days), sera
+            takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, 500, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, 500, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, 500, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
 
         // Taker has recipient=taker (non-zero), so ETH is withdrawn to wallet
         assertEq(eth.balanceOf(taker), 10 ether);
@@ -694,11 +696,11 @@ contract SeraSOR_DeepAudit is TestHelper {
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, makerSig, 10 ether);
 
         bytes memory sorSig = _signIntent(
-            takerPK, taker, address(usdc), address(eth), 0, 0, taker, 0, sharedUuid, uint48(block.timestamp + 1 days), sera
+            takerPK, taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, sharedUuid, uint48(block.timestamp + 1 days), sera
         );
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), 0, 0, taker, 0, sharedUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, address(usdc), address(eth), type(uint256).max, 1, taker, 0, sharedUuid, uint48(block.timestamp + 1 days)), 3, 0, bytes(""));
 
         // Now use uuid=42 for instant withdraw — should succeed (different namespace)
         address[] memory tokens = new address[](1);

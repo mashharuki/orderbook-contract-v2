@@ -91,17 +91,17 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // Execute first time — should succeed
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Replay — intent already consumed, should revert
         _mintAndDeposit(taker, address(usdc), 1000 ether, sera);
         vm.prank(executor);
         vm.expectRevert(Sera.UuidAlreadyUsed.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 2. NON-EXECUTOR ATTACK ============
@@ -116,13 +116,13 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // Attacker tries to call executeRoute
         vm.prank(attacker);
         vm.expectRevert();
         // Will revert with Unauthorized(attacker, EXECUTOR_ROLE)
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 3. DIRECT settleRoutedLeg BYPASS ============
@@ -162,11 +162,11 @@ contract SeraSOR_AttackVector_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(takerLeg1, bytes(""), 1000 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         matches[1] = MatchData(fakeTakerLeg2, bytes(""), type(uint256).max, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 1 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(SeraSOR.InvalidRoute.selector); // Different user in leg 2
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 5. PAUSED CONTRACT ============
@@ -181,7 +181,7 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         // Pause the contract
         vm.prank(owner);
@@ -189,7 +189,7 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         vm.prank(executor);
         vm.expectRevert(SeraBase.SeraPaused.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 6. DEADLINE EXPIRY ============
@@ -208,14 +208,14 @@ contract SeraSOR_AttackVector_Test is TestHelper {
         // Use a short deadline that will expire after warp
         uint48 shortDeadline = uint48(block.timestamp + 50);
         uint256 nonce = 999;
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, nonce, shortDeadline, sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, nonce, shortDeadline, sera);
 
         // Warp past deadline
         vm.warp(block.timestamp + 100);
 
         vm.prank(executor);
         vm.expectRevert(MatchExpired.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, nonce, shortDeadline), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, nonce, shortDeadline), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 7. SPREAD DISTRIBUTION — ALL TO PROTOCOL ============
@@ -240,10 +240,10 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Protocol should capture 100% of spread
         // USDC spread: 200 → all to protocol
@@ -272,10 +272,10 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // 100% taker shares:
         //   totalSpread0 = 200 USDC → spreadToMaker0 = 0, spreadToTaker0 = 200 (taker implicit rebate).
@@ -299,7 +299,7 @@ contract SeraSOR_AttackVector_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](0);
         vm.prank(executor);
         vm.expectRevert(SeraSOR.EmptyRoute.selector);
-        sor.executeIntent(matches, bytes(""), IntentParams(taker, address(0), address(0), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(1), 0, bytes(""));
+        sor.executeIntent(matches, bytes(""), IntentParams(taker, address(0), address(0), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(1), 0, bytes(""));
     }
 
     // ============ 10. TOO MANY LEGS ============
@@ -309,7 +309,7 @@ contract SeraSOR_AttackVector_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](21);
         vm.prank(executor);
         vm.expectRevert(SeraSOR.TooManyLegs.selector);
-        sor.executeIntent(matches, bytes(""), IntentParams(taker, address(0), address(0), 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(1), 0, bytes(""));
+        sor.executeIntent(matches, bytes(""), IntentParams(taker, address(0), address(0), type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(1), 0, bytes(""));
     }
 
     // ============ 11. BLACKLISTED MAKER ============
@@ -329,11 +329,11 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(abi.encodeWithSelector(IVault.BlacklistedUser.selector, maker1));
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 12. EXPIRED MAKER ORDER ============
@@ -349,11 +349,11 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(Sera.OrderExpired.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 13. INSUFFICIENT MAKER BALANCE ============
@@ -368,11 +368,11 @@ contract SeraSOR_AttackVector_Test is TestHelper {
 
         MatchData[] memory matches = new MatchData[](1);
         matches[0] = MatchData(takerOrder, bytes(""), 1000 ether, makerOrder, _signOrder(maker1PK, makerOrder, sera), 10 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
         vm.expectRevert(Sera.InsufficientVaultBalance.selector);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
     }
 
     // ============ 14. REMOVED: MAKER WITH ROUTEHASH ============
@@ -401,10 +401,10 @@ contract SeraSOR_AttackVector_Test is TestHelper {
         MatchData[] memory matches = new MatchData[](2);
         matches[0] = MatchData(takerLeg1, bytes(""), 1000 ether, makerLeg1, _signOrder(maker1PK, makerLeg1, sera), 10 ether);
         matches[1] = MatchData(takerLeg2, bytes(""), type(uint256).max, makerLeg2, _signOrder(maker2PK, makerLeg2, sera), 1 ether);
-        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
+        bytes memory sorSig = _signIntent(takerPK, taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days), sera);
 
         vm.prank(executor);
-        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, 0, 0, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
+        sor.executeIntent(matches, sorSig, IntentParams(taker, matches[0].order0.fromToken, matches[matches.length - 1].order0.toToken, type(uint256).max, 1, taker, 0, block.timestamp, uint48(block.timestamp + 1 days)), uint8(matches.length * 2 + 1), 0, bytes(""));
 
         // Solvency check: vault's actual ERC20 balance >= sum of all user ledger balances
         Vault v = sera.vault();

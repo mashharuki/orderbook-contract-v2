@@ -12,13 +12,13 @@ This document serves as a reference for security auditors to understand specific
 The contract only calls `_validateSignature()` if `filledAmount[orderHash] == 0`. For subsequent fills (partial fills), signature verification is skipped.
 
 ### Why this is Secure
-This is a **Signature Caching** optimization. It is cryptographically safe due to the following invariants:
+This is a **Signature Caching** optimization on signature-checked order flows. It is cryptographically safe due to the following invariants:
 
 1. **Hash Immutability:** The `orderHash` is derived from the *entire* `Order` struct. If an executor attempts to modify any parameter (price, amount, tokens, expiration, uuid, recipient), the `orderHash` changes.
-2. **First-Fill Authentication:** The only way to get `filledAmount[orderHash] > 0` is to have successfully passed `_validateSignature()` in a previous transaction for that *exact* hash. `_validateSignature` uses OpenZeppelin's `SignatureChecker.isValidSignatureNowCalldata()`, which validates ECDSA signatures for EOAs and calls `isValidSignature()` (EIP-1271) for smart contract wallets.
+2. **First-Fill Authentication:** The only way to get `filledAmount[orderHash] > 0` for an order reusing this cache is to have successfully passed `_validateSignature()` in a previous transaction for that *exact* hash. The routed SOR taker leg no longer writes `filledAmount`; the taker side is instead bounded by the signed SOR envelope and `consumeIntentUuid()` replay protection. `_validateSignature` uses OpenZeppelin's `SignatureChecker.isValidSignatureNowCalldata()`, which validates ECDSA signatures for EOAs and calls `isValidSignature()` (EIP-1271) for smart contract wallets.
 3. **Budget Enforcement:** The `filledAmount[orderHash] + matchAmount <= order.fromAmount` check ensures that the cached authentication only applies to the total volume originally authorized by the user.
 
-**Note on EIP-1271 revocability:** ERC-1271 signatures are technically revocable (e.g., a Safe owner rotation could invalidate a previously valid signature). However, since signature caching only skips re-verification for subsequent partial fills of an already-authenticated order, this is acceptable — the first fill already validated the signature, and the order's total budget is immutably capped.
+**Note on EIP-1271 revocability:** ERC-1271 signatures are technically revocable (e.g., a Safe owner rotation could invalidate a previously valid signature). However, since signature caching only skips re-verification for subsequent partial fills of an already-authenticated order, this is acceptable — the first fill already validated the signature, and the order's total budget is immutably capped. This applies to signature-checked standalone orders and routed maker legs, not to the SOR taker leg.
 
 ### Benefit
 Saves ~3,000+ gas per partial fill by avoiding redundant signature verification calls and reduces calldata overhead.
