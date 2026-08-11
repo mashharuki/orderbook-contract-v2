@@ -52,6 +52,9 @@ override_spacing = false
 wrap_comments = false
 ignore = []
 
+[lint]
+severity = ["high", "med", "low"]
+
 [rpc_endpoints]
 arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
 sepolia = "${SEPOLIA_RPC_URL}"
