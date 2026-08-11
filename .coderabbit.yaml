@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+language: en-US
+
+reviews:
+  profile: chill
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!lib/**"
+    - "!vendor/**"
+    - "!out/**"
+    - "!cache/**"
+    - "!broadcast/**"
+    - "!audits/**"
+  path_instructions:
+    - path: "src/**/*.sol"
+      instructions: >
+        This is audited Solidity contract code for a live orderbook/vault protocol.
+        Prioritize: reentrancy, access control (roles/ownership), unchecked external
+        calls, integer overflow/precision loss in fee and settlement math, signature
+        replay (EIP-712/EIP-1271), and any change to custody or withdrawal logic.
+        Flag any behavioral change to already-audited contracts, not just style.
+    - path: "script/**/*.sol"
+      instructions: >
+        These are deployment scripts. Focus on deployment safety: correct
+        constructor/initializer args, role assignment order, and any place a
+        misconfiguration could leave the deployed system in an insecure or
+        ungoverned state (e.g. admin roles not renounced/transferred correctly).
+    - path: "test/**/*.sol"
+      instructions: >
+        Focus on test coverage and assertion quality: are both success and
+        revert paths asserted, are edge cases (zero amounts, max values,
+        expired signatures) covered, and do fuzz/invariant tests have
+        meaningful bounds rather than trivially-passing ranges.
+
+chat:
+  auto_reply: true
