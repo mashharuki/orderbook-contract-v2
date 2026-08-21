@@ -156,6 +156,16 @@ forge script script/Deploy.s.sol:DeployScript --rpc-url $MAINNET_RPC_URL --broad
 
 `Deploy.s.sol` requires `TIMELOCK_ADDRESS` to point at deployed bytecode; the script reverts otherwise so governance is never orphaned after the deployer renounces `DEFAULT_ADMIN_ROLE`.
 
+### Local protocol walkthrough
+
+Run the complete v2 user-flow walkthrough on an isolated local Anvil chain:
+
+```shell
+./script/run-local-experience.sh
+```
+
+It deploys a fresh stack and broadcasts real local transactions for Vault deposits, signed direct and partial matches, best-effort and atomic batches, a two-hop SOR route with signed wallet funding, a dual-signature instant withdrawal, the complete delayed-withdraw flow (including Anvil block mining), and pause/unpause protection. Every stage checks its post-conditions and reverts on a failed assertion. The helper only accepts a loopback RPC URL and defaults to Anvil's public development keys; do not provide production keys.
+
 ---
 
 ## Documentation
